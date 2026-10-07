@@ -1,0 +1,991 @@
+<title>เคลมค่าขาดประโยชน์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: claimant view is a single mobile-first column (max 560px); back office is queue + detail split. */
+:root{
+  --bg:#F2F5F4; --surface:#FFFFFF; --sunk:#E8EEEC; --line:#D3DDDA;
+  --ink:#16262A; --muted:#566A6E; --accent:#0B6B60; --accent-ink:#FFFFFF; --accent-soft:#DCEFEA;
+  --sign:#F2B233; --sign-soft:#FDF1D6; --sign-ink:#5A3D00;
+  --ok:#1E7B45; --ok-soft:#DDF2E4; --warn:#9A5B00; --warn-soft:#FBEBCF; --bad:#B3261E; --bad-soft:#F9E0DE; --info:#2456A6; --info-soft:#E0E9F8;
+  --plate-bg:#FFFFFF; --plate-ink:#111111;
+  --shadow:0 1px 2px rgba(22,38,42,.06),0 4px 16px rgba(22,38,42,.06);
+  --f-display:"Anuphan","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1A1C; --surface:#172427; --sunk:#1E2E31; --line:#2C3F43;
+  --ink:#E6EEEC; --muted:#9AB0AE; --accent:#3CC2AE; --accent-ink:#06201C; --accent-soft:#16383A;
+  --sign:#F2B233; --sign-soft:#3A2E12; --sign-ink:#F7D489;
+  --ok:#5BD08A; --ok-soft:#173826; --warn:#F0B354; --warn-soft:#3A2C12; --bad:#F2867E; --bad-soft:#3E1D1B; --info:#86AEF0; --info-soft:#1B2A45;
+  --plate-bg:#F4F4F0; --plate-ink:#111111;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1A1C; --surface:#172427; --sunk:#1E2E31; --line:#2C3F43;
+  --ink:#E6EEEC; --muted:#9AB0AE; --accent:#3CC2AE; --accent-ink:#06201C; --accent-soft:#16383A;
+  --sign:#F2B233; --sign-soft:#3A2E12; --sign-ink:#F7D489;
+  --ok:#5BD08A; --ok-soft:#173826; --warn:#F0B354; --warn-soft:#3A2C12; --bad:#F2867E; --bad-soft:#3E1D1B; --info:#86AEF0; --info-soft:#1B2A45;
+  --plate-bg:#F4F4F0; --plate-ink:#111111;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0}
+h1,h2,h3{font-family:var(--f-display);line-height:1.25;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.6rem,5vw,2.2rem);font-weight:700}
+h2{font-size:1.3rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-size:.85rem}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sign);outline-offset:2px}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:1.05rem;margin-right:auto}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink)}
+.seg{display:flex;background:var(--sunk);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.88rem;color:var(--muted);font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.linkbtn{border:0;background:none;color:var(--muted);cursor:pointer;font-size:.82rem;text-decoration:underline;padding:4px}
+.sim{background:var(--sign-soft);color:var(--sign-ink);font-size:.8rem;text-align:center;padding:5px 16px}
+
+/* containers */
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:24px 64px;display:flex;flex-direction:column;gap:18px}
+.wrap-wide{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 64px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.flat{background:var(--sunk);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{min-width:0}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:440px){.grid2{grid-template-columns:1fr}}
+
+/* buttons */
+.btn{border:1px solid transparent;border-radius:12px;padding:12px 18px;cursor:pointer;font-weight:600;font-size:.98rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;transition:transform .08s,background .15s}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn.ghost:hover{background:var(--sunk)}
+.btn.danger{background:var(--surface);border-color:var(--bad);color:var(--bad)}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:.86rem;border-radius:10px}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.chipbtn{border:1px dashed var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:.82rem;color:var(--muted)}
+.chipbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* fields */
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:.92rem}
+.field .hint{font-size:.82rem;color:var(--muted)}
+.input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);min-height:48px;font-size:1rem}
+.input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+textarea.input{min-height:90px;resize:vertical}
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:.92rem}
+.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent);flex:none}
+.otp{letter-spacing:.5em;font-family:var(--f-mono);text-align:center;font-size:1.3rem}
+
+/* alerts */
+.alert{border-radius:12px;padding:12px 14px;font-size:.92rem;display:flex;gap:10px;align-items:flex-start}
+.alert b{font-weight:600}
+.alert.bad{background:var(--bad-soft);color:var(--bad)}
+.alert.warn{background:var(--warn-soft);color:var(--warn)}
+.alert.ok{background:var(--ok-soft);color:var(--ok)}
+.alert.info{background:var(--info-soft);color:var(--info)}
+.alert .ico{flex:none;font-weight:700}
+
+/* hero */
+.hero{display:flex;flex-direction:column;gap:14px;padding-top:8px}
+.eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lede{font-size:1.05rem;color:var(--muted)}
+
+/* estimate (road-sign style) */
+.est{background:var(--sign-soft);border:2px solid var(--sign);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px}
+.est .amt{font-family:var(--f-display);font-weight:700;font-size:2rem;color:var(--sign-ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.est .formula{font-size:.88rem;color:var(--sign-ink)}
+
+/* Thai licence plate */
+.plate{display:inline-flex;flex-direction:column;align-items:center;background:var(--plate-bg);color:var(--plate-ink);border:2px solid var(--plate-ink);border-radius:7px;padding:4px 14px 3px;line-height:1.15;min-width:128px;box-shadow:inset 0 0 0 2px var(--plate-bg),inset 0 0 0 3px var(--plate-ink)}
+.plate .p1{font-family:var(--f-display);font-weight:700;font-size:1.25rem;letter-spacing:.02em}
+.plate .p2{font-size:.68rem}
+.plate.sm{min-width:96px;padding:2px 8px 1px}
+.plate.sm .p1{font-size:.95rem}
+.plate.sm .p2{font-size:.58rem}
+
+/* wizard stepper */
+.stepper{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.stepper div{display:flex;flex-direction:column;gap:6px;font-size:.72rem;color:var(--muted);text-align:center}
+.stepper div::before{content:"";height:5px;border-radius:5px;background:var(--line)}
+.stepper .done::before,.stepper .now::before{background:var(--accent)}
+.stepper .now{color:var(--ink);font-weight:600}
+
+/* key-value list */
+.kv{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:6px 14px;font-size:.93rem}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
+
+/* docs */
+.doc{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;flex-wrap:wrap}
+.doc .dico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--sunk);color:var(--muted);font-weight:700}
+.doc.has .dico{background:var(--ok-soft);color:var(--ok)}
+.doc .dtxt{flex:1;min-width:160px}
+.doc .dname{font-weight:600;font-size:.93rem}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* status pill */
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.info{background:var(--info-soft);color:var(--info)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.sign{background:var(--sign-soft);color:var(--sign-ink)}
+
+/* progress (claimant tracker) */
+.prog{display:flex;flex-direction:column;gap:0;padding:0;margin:0}
+.prog li{list-style:none;display:grid;grid-template-columns:28px 1fr;gap:12px;position:relative;padding-bottom:16px}
+.prog li:last-child{padding-bottom:0}
+.prog li::after{content:"";position:absolute;left:13px;top:28px;bottom:0;width:2px;background:var(--line)}
+.prog li:last-child::after{display:none}
+.prog .dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:var(--muted);z-index:1}
+.prog .done .dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.prog .done::after{background:var(--accent)}
+.prog .now .dot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.prog .t{font-weight:600}
+.prog .todo .t{color:var(--muted);font-weight:500}
+
+/* timeline */
+.tl{padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.tl li{list-style:none;display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:.88rem}
+.tl .when{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl .by{font-size:.74rem;color:var(--muted)}
+
+/* back office */
+.bo{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
+@media (max-width:900px){.bo{grid-template-columns:1fr}}
+.bo > *{min-width:0}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.82rem;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.q{display:flex;flex-direction:column;gap:8px}
+.qi{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;cursor:pointer;width:100%}
+.qi:hover{border-color:var(--accent)}
+.qi[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.qi .qn{font-weight:600;font-size:.92rem}
+.qi .qm{grid-column:2 / 4;font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chain{display:flex;gap:8px;flex-wrap:wrap}
+.chain .lv{flex:1;min-width:140px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.84rem;display:flex;flex-direction:column;gap:2px}
+.chain .lv.ok{border-color:var(--ok);background:var(--ok-soft)}
+.chain .lv.next{border-color:var(--sign);background:var(--sign-soft)}
+.chain .lv.skip{opacity:.45;border-style:dashed}
+.chain .lvh{font-weight:700;font-family:var(--f-display)}
+.console{background:#0E1719;color:#CFE3DE;border-radius:12px;padding:12px 14px;font-family:var(--f-mono);font-size:.78rem;overflow-x:auto;white-space:pre;line-height:1.5}
+.tbl{width:100%;border-collapse:collapse;font-size:.88rem}
+.tbl th,.tbl td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+.tbl th{color:var(--muted);font-weight:500;font-size:.8rem}
+.tbl td.r,.tbl th.r{text-align:right}
+details summary{cursor:pointer;font-weight:600}
+
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(10,20,22,.55);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px;overflow-y:auto}
+@media (min-width:640px){.ov{align-items:center}}
+.modal{background:var(--surface);border-radius:18px;max-width:560px;width:100%;padding:22px;display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 8px);overflow-y:auto}
+.consent{background:var(--sunk);border-radius:12px;padding:14px;font-size:.9rem;display:flex;flex-direction:column;gap:8px}
+mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-radius:4px;font-weight:600}
+
+/* paper document */
+.paper{background:#FFFFFF;color:#1A1A1A;border-radius:6px;padding:26px 24px;font-size:.88rem;display:flex;flex-direction:column;gap:12px;border:1px solid #DDD}
+.paper .ph{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:2px solid #1A1A1A;padding-bottom:10px}
+.paper h3{font-size:1.1rem;text-align:center}
+.paper table{width:100%;border-collapse:collapse}
+.paper td{padding:5px 0;border-bottom:1px dotted #BBB;vertical-align:top}
+.paper td:first-child{color:#555;width:42%}
+.paper .stamp{align-self:flex-end;border:2px solid #0B6B60;color:#0B6B60;border-radius:8px;padding:6px 12px;font-weight:700;transform:rotate(-4deg);font-family:var(--f-display)}
+
+.big-ok{width:64px;height:64px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:2rem;font-weight:700}
+.caseno{font-family:var(--f-mono);font-size:1.4rem;font-weight:500;letter-spacing:.04em}
+.howlist{margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:h}
+.howlist li{list-style:none;display:grid;grid-template-columns:30px 1fr;gap:10px;counter-increment:h}
+.howlist li::before{content:counter(h);width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:.85rem}
+.needs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.needs div{background:var(--sunk);border-radius:12px;padding:12px;font-size:.88rem}
+.needs b{display:block;font-size:.92rem}
+@media (max-width:440px){.needs{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app"></div>
+<div id="modal"></div>
+
+<script>
+'use strict';
+/* =================== ข้อมูลจำลอง & การตั้งค่า =================== */
+const KEY = 'lu-proto-v1';
+const COMPANY = 'บริษัท ประกันภัยตัวอย่าง จำกัด (มหาชน)';
+const OTP = '123456';
+const RATES = {
+  car:   { label: 'รถยนต์นั่งไม่เกิน 7 ที่นั่ง', hint: 'เก๋ง กระบะ SUV', rate: 500 },
+  van:   { label: 'รถยนต์ 8–20 ที่นั่ง', hint: 'รถตู้', rate: 700 },
+  truck: { label: 'รถเกิน 20 ที่นั่ง / รถบรรทุก', hint: 'รถโดยสาร รถบรรทุก', rate: 1000 },
+};
+// อำนาจอนุมัติวงเงิน: อนุมัติตามลำดับ Step 1 → 2 → 3 จนถึงระดับที่ยอดเงินกำหนด
+const TIERS = [
+  { step: 1, max: 5000,     role: 'เจ้าหน้าที่สินไหม',     who: 'คุณปวีณา' },
+  { step: 2, max: 20000,    role: 'หัวหน้าทีมสินไหม',     who: 'คุณอนุชา' },
+  { step: 3, max: Infinity, role: 'ผู้จัดการฝ่ายสินไหม', who: 'คุณรัตนา' },
+];
+const requiredStep = amt => TIERS.find(t => amt <= t.max).step;
+const BANKS = ['กสิกรไทย','กรุงเทพ','ไทยพาณิชย์','กรุงไทย','กรุงศรีอยุธยา','ทหารไทยธนชาต','ออมสิน'];
+const DOCS = [
+  { id: 'idcard',    label: 'บัตรประชาชน',               hint: 'ด้านหน้า เห็นชื่อและเลขบัตรชัดเจน' },
+  { id: 'carbook',   label: 'สำเนาทะเบียนรถ',            hint: 'หน้าที่มีชื่อเจ้าของรถ' },
+  { id: 'bankbook',  label: 'หน้าสมุดบัญชีธนาคาร',       hint: 'ชื่อบัญชีต้องตรงกับเจ้าของรถ' },
+  { id: 'repairIn',  label: 'ใบรับรถเข้าซ่อม',            hint: 'ออกโดยอู่หรือศูนย์บริการ' },
+  { id: 'repairOut', label: 'ใบส่งมอบรถ / ใบเสร็จค่าซ่อม', hint: 'ส่งภายหลังได้ถ้ารถยังซ่อมไม่เสร็จ' },
+];
+// ฐานข้อมูลเคลมจำลอง (แทนระบบเคลมหลักของบริษัท) — คู่กรณีฝ่ายถูกเท่านั้นที่ยื่นได้
+const CLAIMS = [
+  { claimNo:'CLM-69-004521', plate:'1กข 1234', province:'กรุงเทพมหานคร', owner:'สมชาย ใจดี', type:'car', model:'Toyota Yaris Ativ สีขาว', accident:'2026-09-20', place:'ถ.รัชดาภิเษก แยกห้วยขวาง', insuredPlate:'7กษ 8899', role:'victim' },
+  { claimNo:'CLM-69-004588', plate:'30-4567', province:'นนทบุรี', owner:'วิภา รักษ์ดี', type:'van', model:'Toyota Commuter สีเงิน', accident:'2026-09-02', place:'ถ.แจ้งวัฒนะ หน้าห้างเซ็นทรัล', insuredPlate:'4ขจ 2210', role:'victim' },
+  { claimNo:'CLM-69-003910', plate:'2กง 4455', province:'กรุงเทพมหานคร', owner:'ประยุทธ มั่นคง', type:'car', model:'Honda City สีดำ', accident:'2026-08-30', place:'ซ.ลาดพร้าว 71', insuredPlate:'5กม 1020', role:'atfault' },
+  { claimNo:'CLM-69-004102', plate:'6กท 9001', province:'ปทุมธานี', owner:'มานพ ศรีสุข', type:'car', model:'Isuzu D-Max สีเทา', accident:'2026-09-15', place:'ถ.รังสิต-นครนายก', insuredPlate:'1ขข 5555', role:'victim' },
+  { claimNo:'CLM-69-003777', plate:'70-1188', province:'สมุทรปราการ', owner:'ศิริพร ขนส่ง', type:'truck', model:'Hino 6 ล้อ', accident:'2026-08-18', place:'ถ.บางนา-ตราด กม.12', insuredPlate:'3กฉ 7788', role:'victim' },
+  { claimNo:'CLM-69-003650', plate:'9กญ 3030', province:'กรุงเทพมหานคร', owner:'ธนา วงศ์ใหญ่', type:'car', model:'Mazda 2 สีแดง', accident:'2026-08-25', place:'ถ.พระราม 9', insuredPlate:'8กศ 4411', role:'victim' },
+  { claimNo:'CLM-69-003201', plate:'4กพ 7777', province:'เชียงใหม่', owner:'กัญญา ดวงดี', type:'car', model:'Nissan Almera สีฟ้า', accident:'2026-08-05', place:'ถ.ซุปเปอร์ไฮเวย์ เชียงใหม่', insuredPlate:'2กน 3322', role:'victim' },
+];
+
+/* =================== utils =================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normPlate = s => String(s || '').replace(/[\s-]/g, '');
+const baht = n => Number(n || 0).toLocaleString('th-TH') + ' บาท';
+const fmtD = iso => iso ? new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '–';
+const fmtDT = iso => new Date(iso).toLocaleString('th-TH', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const days = (a, b) => (a && b) ? Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1 : 0;
+const maskAcct = a => a ? 'xxx-x-x' + String(a).slice(-4) : '';
+const claimOf = c => CLAIMS.find(x => x.claimNo === c.claimNo);
+const docLabel = id => DOCS.find(d => d.id === id)?.label || id;
+const plateHTML = (plate, prov, sm) => `<span class="plate${sm ? ' sm' : ''}"><span class="p1">${esc(plate)}</span><span class="p2">${esc(prov)}</span></span>`;
+
+/* =================== state =================== */
+function seed() {
+  const h = (at, text, by) => ({ at, text, by });
+  return {
+    seq: 4,
+    cases: [
+      { id:'LU-2569-0004', claimNo:'CLM-69-004102', phone:'0891112222', type:'car', repairIn:'2026-09-17', repairOut:'2026-09-28', bank:{ name:'กรุงไทย', acct:'9810034521' }, holder:'มานพ ศรีสุข',
+        docs:{ idcard:'idcard.jpg', carbook:'carbook.jpg', bankbook:'bank.jpg', repairIn:'repair-in.pdf', repairOut:'repair-out.pdf' }, status:'SUBMITTED', approvals:[], appealCount:0,
+        history:[ h('2026-10-06T09:12:00','ยื่นคำร้อง','claimant') ] },
+      { id:'LU-2569-0003', claimNo:'CLM-69-003777', phone:'0823334444', type:'truck', repairIn:'2026-08-20', repairOut:'2026-09-06', bank:{ name:'กสิกรไทย', acct:'0418827715' }, holder:'ศิริพร ขนส่ง',
+        docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf' }, status:'PENDING_APPROVAL', approvedDays:18, approvedAmount:18000, approvals:[ { step:1, who:'คุณปวีณา', at:'2026-10-05T14:20:00' } ], appealCount:0,
+        history:[ h('2026-09-30T10:01:00','ยื่นคำร้อง','claimant'), h('2026-10-01T11:30:00','ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน','company'), h('2026-10-02T16:05:00','เสนอยอด 18 วัน × 1,000 = 18,000 บาท (ต้องอนุมัติถึง Step 2)','company'), h('2026-10-05T14:20:00','Step 1 อนุมัติ (คุณปวีณา)','company') ] },
+      { id:'LU-2569-0002', claimNo:'CLM-69-003650', phone:'0865556666', type:'car', repairIn:'2026-08-27', repairOut:'2026-09-12', bank:{ name:'ไทยพาณิชย์', acct:'4052219983' }, holder:'ธนา วงศ์ใหญ่',
+        docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf' }, status:'OFFERED', approvedDays:12, approvedAmount:6000,
+        adjustReason:'รถรอคิวเข้าอู่ 5 วันหลังรับใบรับรถ ซึ่งไม่ได้เกิดจากการซ่อม จึงนับ 12 วันจาก 17 วัน', approvals:[ { step:1, who:'คุณปวีณา', at:'2026-10-03T10:00:00' }, { step:2, who:'คุณอนุชา', at:'2026-10-04T09:40:00' } ], appealCount:0,
+        history:[ h('2026-09-25T08:44:00','ยื่นคำร้อง','claimant'), h('2026-09-26T13:10:00','ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน','company'), h('2026-10-02T15:00:00','เสนอยอด 12 วัน × 500 = 6,000 บาท (ต้องอนุมัติถึง Step 2)','company'), h('2026-10-03T10:00:00','Step 1 อนุมัติ (คุณปวีณา)','company'), h('2026-10-04T09:40:00','Step 2 อนุมัติ (คุณอนุชา) แจ้งผลพิจารณาแล้ว','company') ] },
+      { id:'LU-2569-0001', claimNo:'CLM-69-003201', phone:'0877778888', type:'car', repairIn:'2026-08-07', repairOut:'2026-08-14', bank:{ name:'กรุงเทพ', acct:'1234509876' }, holder:'กัญญา ดวงดี',
+        docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf' }, status:'PAID', approvedDays:8, approvedAmount:4000, approvals:[ { step:1, who:'คุณปวีณา', at:'2026-08-22T10:00:00' } ], appealCount:0,
+        signedAt:'2026-08-23T19:02:00', payment:{ ref:'BNK2608240117', at:'2026-08-24T10:15:00' },
+        history:[ h('2026-08-18T09:00:00','ยื่นคำร้อง','claimant'), h('2026-08-19T10:30:00','ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน','company'), h('2026-08-21T14:00:00','เสนอยอด 8 วัน × 500 = 4,000 บาท (ต้องอนุมัติถึง Step 1)','company'), h('2026-08-22T10:00:00','Step 1 อนุมัติ (คุณปวีณา) แจ้งผลพิจารณาแล้ว','company'), h('2026-08-23T19:02:00','ลงนามตอบรับผลพิจารณาด้วย OTP','claimant'), h('2026-08-24T10:15:00','โอนเงินสำเร็จ อ้างอิง BNK2608240117','company') ] },
+    ],
+  };
+}
+function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.cases ? s : null; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+let S = load() || seed();
+const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', notDone:false, bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
+let UI = { view:'claimant', page:'home', wiz:newWiz(), caseId:null, boId:null, boFilter:'todo', calc:{ type:'car', days:7 }, t:{}, err:'', modal:null, bankLog:{} };
+try { const v = localStorage.getItem(KEY + '-view'); if (v === 'bo' || v === 'claimant') UI.view = v; } catch (e) {}
+
+const getCase = id => S.cases.find(c => c.id === id);
+const reqDays = c => c.repairOut ? days(c.repairIn, c.repairOut) : days(c.repairIn, todayISO());
+const reqAmount = c => reqDays(c) * RATES[c.type].rate;
+const log = (c, text, by) => c.history.push({ at: new Date().toISOString(), text, by });
+
+/* =================== status vocab =================== */
+const ST = {
+  WAITING_REPAIR:   { pill:'warn', bo:'รอรถซ่อมเสร็จ',   me:'รอใบส่งมอบรถ',            stage:1, msg:'เมื่อรับรถคืนจากอู่แล้ว กรอกวันที่และแนบใบส่งมอบรถด้านล่าง แล้วเราจะเริ่มพิจารณาทันที' },
+  SUBMITTED:        { pill:'info', bo:'รอตรวจเอกสาร',    me:'กำลังตรวจเอกสาร',         stage:1, msg:'เจ้าหน้าที่กำลังตรวจเอกสารของคุณ ปกติใช้เวลาไม่เกิน 2 วันทำการ' },
+  NEED_INFO:        { pill:'warn', bo:'รอเอกสารเพิ่ม',    me:'ขอเอกสารเพิ่ม',            stage:1, msg:'เจ้าหน้าที่ขอเอกสารเพิ่มเติม ส่งได้ในหน้านี้เลย' },
+  UNDER_REVIEW:     { pill:'info', bo:'รอพิจารณายอด',    me:'กำลังพิจารณาวงเงิน',       stage:2, msg:'เอกสารครบแล้ว เจ้าหน้าที่กำลังคำนวณและพิจารณาวงเงิน' },
+  PENDING_APPROVAL: { pill:'info', bo:'รออนุมัติ',        me:'กำลังพิจารณาวงเงิน',       stage:2, msg:'ยอดเงินอยู่ระหว่างการอนุมัติตามขั้นตอนของบริษัท' },
+  OFFERED:          { pill:'sign', bo:'รอผู้เรียกร้องตอบรับ', me:'มีผลพิจารณา รอคุณตอบรับ', stage:3, msg:'ผลพิจารณาออกแล้ว ตรวจยอดเงินแล้วกดตอบรับเพื่อรับเงิน' },
+  ACCEPTED:         { pill:'info', bo:'รอโอนเงิน',        me:'ตอบรับแล้ว รอโอนเงิน',      stage:4, msg:'คุณตอบรับแล้ว ฝ่ายการเงินกำลังโอนเงินเข้าบัญชีของคุณ' },
+  PAYMENT_FAILED:   { pill:'bad',  bo:'โอนไม่สำเร็จ',     me:'โอนเงินไม่สำเร็จ',          stage:4, msg:'ธนาคารปฏิเสธการโอน ตรวจเลขบัญชีแล้วแก้ไขด้านล่าง' },
+  PAID:             { pill:'ok',   bo:'จ่ายแล้ว ปิดเคส',  me:'ได้รับเงินแล้ว',            stage:5, msg:'โอนเงินเรียบร้อย ดาวน์โหลดหนังสือยืนยันได้ด้านล่าง' },
+};
+const pill = (s, who) => `<span class="pill ${ST[s].pill}">${esc(ST[s][who])}</span>`;
+
+/* =================== render root =================== */
+function render() {
+  const top = `
+  <div class="top"><div class="top-in">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-5h9L18 17"/><circle cx="8" cy="17" r="2" fill="currentColor"/><circle cx="16" cy="17" r="2" fill="currentColor"/><path d="M9 8l3-3 3 3"/></svg>
+    </span>เคลมค่าขาดประโยชน์</div>
+    <div class="seg" role="group" aria-label="มุมมอง">
+      <button data-a="view" data-v="claimant" aria-pressed="${UI.view === 'claimant'}">ผู้เรียกร้อง</button>
+      <button data-a="view" data-v="bo" aria-pressed="${UI.view === 'bo'}">หลังบ้านบริษัท</button>
+    </div>
+    <button class="linkbtn" data-a="reset">รีเซ็ตข้อมูลจำลอง</button>
+  </div></div>
+  <div class="sim">โปรแกรมจำลอง · ข้อมูลเคลม การยืนยัน OTP และการโอนผ่าน API ธนาคารเป็นข้อมูลสมมติทั้งหมด</div>`;
+  $('#app').innerHTML = top + (UI.view === 'claimant' ? renderClaimant() : renderBO());
+  renderModal();
+}
+
+/* =================== CLAIMANT =================== */
+function renderClaimant() {
+  if (UI.page === 'wizard') return `<main class="wrap">${wizard()}</main>`;
+  if (UI.page === 'done') return `<main class="wrap">${done()}</main>`;
+  if (UI.page === 'track') return `<main class="wrap">${trackLookup()}</main>`;
+  if (UI.page === 'case' && getCase(UI.caseId)) return `<main class="wrap">${caseView(getCase(UI.caseId))}</main>`;
+  return `<main class="wrap">${home()}</main>`;
+}
+
+function home() {
+  const r = RATES[UI.calc.type].rate, d = Math.max(0, Number(UI.calc.days) || 0);
+  return `
+  <section class="hero">
+    <p class="eyebrow">สำหรับคู่กรณีฝ่ายถูก</p>
+    <h1>รถถูกชนจนต้องจอดซ่อม? ขอค่าขาดประโยชน์ได้ที่นี่</h1>
+    <p class="lede">กรอกข้อมูล 4 ขั้น ใช้เวลาประมาณ 5 นาที แล้วติดตามผลจนเงินเข้าบัญชีได้จากมือถือ ไม่ต้องเดินทางมาที่บริษัท</p>
+    <div class="row">
+      <button class="btn primary" data-a="startWiz">เริ่มยื่นคำร้อง</button>
+      <button class="btn ghost" data-a="goTrack">ติดตามคำร้องเดิม</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>ลองคำนวณยอดเบื้องต้น</h3>
+    <div class="grid2">
+      <div class="field"><label for="calcType">ประเภทรถ</label>
+        <select class="input" id="calcType" data-calc="type">${Object.entries(RATES).map(([k, v]) => `<option value="${k}" ${k === UI.calc.type ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>
+      <div class="field"><label for="calcDays">จำนวนวันที่รถจอดซ่อม</label>
+        <input class="input num" id="calcDays" type="number" min="1" max="90" inputmode="numeric" value="${esc(UI.calc.days)}" data-calc="days"></div>
+    </div>
+    <div class="est" id="calcOut">
+      <span class="small" style="color:var(--sign-ink)">ยอดประมาณการ</span>
+      <span class="amt">${baht(d * r)}</span>
+      <span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน</span>
+    </div>
+    <p class="small muted">เป็นการประมาณตามอัตราต่อวันของประเภทรถ ยอดจริงขึ้นกับจำนวนวันซ่อมที่สมเหตุสมผลและการพิจารณาของบริษัท</p>
+  </section>
+
+  <section class="card">
+    <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
+    <div class="needs">
+      <div><b>เลขเคลม</b>อยู่บนใบที่พนักงานสำรวจภัยให้ ณ จุดเกิดเหตุ</div>
+      <div><b>บัตรประชาชน + ทะเบียนรถ</b>ถ่ายรูปด้วยมือถือได้</div>
+      <div><b>ใบรับรถเข้าซ่อม</b>ขอจากอู่หรือศูนย์บริการ</div>
+      <div><b>หน้าสมุดบัญชี</b>ชื่อบัญชีตรงกับเจ้าของรถ</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>หลังจากยื่นแล้ว</h3>
+    <ol class="howlist">
+      <li><div><b>เจ้าหน้าที่ตรวจเอกสาร</b><br><span class="small muted">ภายใน 2 วันทำการ ถ้าขาดอะไรจะแจ้งทาง SMS</span></div></li>
+      <li><div><b>บริษัทพิจารณาวงเงิน</b><br><span class="small muted">คุณเห็นวิธีคิดยอดทุกบาท</span></div></li>
+      <li><div><b>คุณตอบรับด้วยรหัส OTP</b><br><span class="small muted">ถ้าไม่เห็นด้วย ขอทบทวนได้ 1 ครั้ง</span></div></li>
+      <li><div><b>เงินเข้าบัญชีพร้อมหนังสือยืนยัน</b><br><span class="small muted">ดาวน์โหลดเก็บไว้เป็นหลักฐานได้</span></div></li>
+    </ol>
+  </section>`;
+}
+
+const WSTEPS = ['ตรวจสิทธิ์', 'ยืนยันตัวตน', 'ข้อมูลการซ่อม', 'เอกสาร', 'ตรวจทาน'];
+function wizard() {
+  const w = UI.wiz;
+  const stepper = `<div class="stepper" aria-label="ขั้นตอน">${WSTEPS.map((s, i) => `<div class="${i < w.step ? 'done' : i === w.step ? 'now' : ''}">${s}</div>`).join('')}</div>`;
+  const err = w.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${w.err}</span></div>` : '';
+  const back = `<button class="btn ghost" data-a="${w.step === 0 ? 'home' : 'wizBack'}">${w.step === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}</button>`;
+  const body = [wStep0, wStep1, wStep2, wStep3, wStep4][w.step]();
+  return `${stepper}<section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}`;
+}
+function wStep0() {
+  const w = UI.wiz, c = w.claim;
+  return {
+    head: `<h2>ตรวจสอบสิทธิ์</h2><p class="muted">กรอกเลขเคลมจากใบที่พนักงานสำรวจภัยให้คุณ และทะเบียนรถของคุณ</p>`,
+    main: `
+      <div class="field"><label for="w-claimNo">เลขเคลม</label><input class="input mono" id="w-claimNo" data-w="claimNo" value="${esc(w.f.claimNo)}" placeholder="CLM-69-000000" autocomplete="off"></div>
+      <div class="field"><label for="w-plate">ทะเบียนรถของคุณ</label><input class="input" id="w-plate" data-w="plate" value="${esc(w.f.plate)}" placeholder="เช่น 1กข 1234"></div>
+      <div class="flat"><span class="small"><b>ข้อมูลทดลอง</b> กดเพื่อกรอกอัตโนมัติ</span>
+        <div class="row">
+          <button class="chipbtn" data-a="fillClaim" data-i="0">รถเก๋ง (มีสิทธิ์)</button>
+          <button class="chipbtn" data-a="fillClaim" data-i="1">รถตู้ (มีสิทธิ์)</button>
+          <button class="chipbtn" data-a="fillClaim" data-i="2">ฝ่ายผิด (ไม่มีสิทธิ์)</button>
+          <button class="chipbtn" data-a="fillClaim" data-i="3">ยื่นไปแล้ว</button>
+        </div></div>
+      ${c ? `<div class="alert ok"><span class="ico">✓</span><span><b>พบข้อมูลเคลม คุณมีสิทธิ์ยื่นคำร้อง</b></span></div>
+      <div class="flat">
+        <div class="row between">${plateHTML(c.plate, c.province)}<span class="small muted">${esc(c.model)}</span></div>
+        <dl class="kv" style="margin-top:8px">
+          <dt>เจ้าของรถ</dt><dd>${esc(c.owner)}</dd>
+          <dt>วันที่เกิดเหตุ</dt><dd>${fmtD(c.accident)}</dd>
+          <dt>สถานที่</dt><dd>${esc(c.place)}</dd>
+          <dt>คู่กรณี (ฝ่ายผิด)</dt><dd>ผู้เอาประกันของบริษัท ทะเบียน ${esc(c.insuredPlate)}</dd>
+          <dt>ยื่นได้ถึง</dt><dd>${fmtD(addYears(c.accident, 2))}</dd>
+        </dl></div>` : ''}`,
+    next: c ? `<button class="btn primary" data-a="wizNext">ใช่ รถของฉัน ไปต่อ</button>` : `<button class="btn primary" data-a="verify">ตรวจสอบสิทธิ์</button>`,
+  };
+}
+function addYears(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0, 10); }
+function wStep1() {
+  const w = UI.wiz;
+  return {
+    head: `<h2>ยืนยันตัวตน</h2><p class="muted">เราจะส่งรหัส OTP ไปที่เบอร์มือถือของคุณ และใช้เบอร์นี้แจ้งความคืบหน้า</p>`,
+    main: `
+      <dl class="kv"><dt>ชื่อเจ้าของรถตามระบบ</dt><dd>${esc(w.claim.owner)}</dd></dl>
+      <div class="field"><label for="w-phone">เบอร์มือถือ</label>
+        <div class="row"><input class="input num" id="w-phone" style="flex:1" data-w="phone" value="${esc(w.f.phone)}" inputmode="tel" maxlength="10" placeholder="08xxxxxxxx">
+        <button class="btn ghost" data-a="sendOtp">${w.otpSent ? 'ส่งอีกครั้ง' : 'ขอรหัส OTP'}</button></div></div>
+      ${w.otpSent ? `<div class="field"><label for="w-otp">รหัส OTP 6 หลัก</label><input class="input otp" id="w-otp" data-w="otp" value="${esc(w.f.otp)}" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><span class="hint">ระบบจำลอง: ใช้รหัส <b class="mono">${OTP}</b></span></div>` : ''}
+      <label class="check"><input type="checkbox" data-w="pdpa" ${w.f.pdpa ? 'checked' : ''}><span>ยินยอมให้บริษัทใช้ข้อมูลส่วนบุคคลเพื่อพิจารณาและจ่ายค่าขาดประโยชน์ตามคำร้องนี้ <span class="muted small">(ไม่ใช้เพื่อการตลาด)</span></span></label>`,
+    next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
+  };
+}
+function estBox(type, a, b, notDone) {
+  const r = RATES[type].rate, d = notDone ? days(a, todayISO()) : days(a, b);
+  if (!a || d <= 0) return `<span class="small" style="color:var(--sign-ink)">ยอดประมาณการ</span><span class="amt">–</span><span class="formula">กรอกวันที่รถเข้าซ่อมเพื่อดูยอด</span>`;
+  return `<span class="small" style="color:var(--sign-ink)">${notDone ? 'ยอดประมาณการถึงวันนี้' : 'ยอดที่ขอเรียกร้อง'}</span>
+    <span class="amt">${baht(d * r)}</span><span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน${notDone ? ' · ยอดจะนับต่อจนรถซ่อมเสร็จ' : ''}</span>
+    ${d > 30 ? `<span class="small" style="color:var(--warn)">ซ่อมนานกว่า 30 วัน เจ้าหน้าที่อาจขอข้อมูลเหตุผลเพิ่ม</span>` : ''}`;
+}
+function wStep2() {
+  const w = UI.wiz, f = w.f, c = w.claim;
+  return {
+    head: `<h2>ข้อมูลการซ่อมและบัญชีรับเงิน</h2>`,
+    main: `
+      <div class="flat"><div class="row between">${plateHTML(c.plate, c.province, true)}<span class="small"><b>${esc(RATES[c.type].label)}</b><br><span class="muted">อัตรา ${RATES[c.type].rate.toLocaleString('th-TH')} บาท/วัน</span></span></div></div>
+      <div class="grid2">
+        <div class="field"><label for="w-in">วันที่รถเข้าซ่อม</label><input class="input" type="date" id="w-in" data-w="repairIn" value="${esc(f.repairIn)}" min="${c.accident}" max="${todayISO()}"></div>
+        <div class="field"><label for="w-out">วันที่รับรถคืน</label><input class="input" type="date" id="w-out" data-w="repairOut" value="${esc(f.repairOut)}" ${f.notDone ? 'disabled' : ''} min="${esc(f.repairIn || c.accident)}" max="${todayISO()}"></div>
+      </div>
+      <label class="check"><input type="checkbox" data-w="notDone" ${f.notDone ? 'checked' : ''}><span>รถยังซ่อมไม่เสร็จ <span class="muted small">(ยื่นไว้ก่อนได้ แล้วส่งวันที่รับรถคืนภายหลัง)</span></span></label>
+      <div class="est" id="est" aria-live="polite">${estBox(c.type, f.repairIn, f.repairOut, f.notDone)}</div>
+      <h3 style="margin-top:6px">บัญชีรับเงิน</h3>
+      <div class="grid2">
+        <div class="field"><label for="w-bank">ธนาคาร</label><select class="input" id="w-bank" data-w="bank"><option value="">เลือกธนาคาร</option>${BANKS.map(b => `<option ${b === f.bank ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
+        <div class="field"><label for="w-acct">เลขที่บัญชี</label><input class="input num" id="w-acct" data-w="acct" value="${esc(f.acct)}" inputmode="numeric" maxlength="12" placeholder="ตัวเลข 10–12 หลัก"></div>
+      </div>
+      <dl class="kv"><dt>ชื่อบัญชี</dt><dd>${esc(c.owner)} <span class="muted small">(ต้องเป็นชื่อเจ้าของรถ)</span></dd></dl>
+      <p class="small muted">ทดลองกรณีธนาคารปฏิเสธการโอน: ใช้เลขบัญชีที่ลงท้ายด้วย 0000</p>`,
+    next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
+  };
+}
+function docRow(d, file, attr, optional) {
+  return `<div class="doc ${file ? 'has' : ''}">
+    <span class="dico" aria-hidden="true">${file ? '✓' : '+'}</span>
+    <div class="dtxt"><div class="dname">${esc(d.label)}${optional ? ' <span class="muted small">(ส่งภายหลัง)</span>' : ''}</div><div class="small muted">${file ? esc(file) : esc(d.hint)}</div></div>
+    <div class="row">
+      <span class="btn ghost sm filebtn">${file ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์'}<input type="file" accept="image/*,.pdf" ${attr}="${d.id}" aria-label="อัปโหลด ${esc(d.label)}"></span>
+      ${file ? '' : `<button class="chipbtn" data-a="sampleDoc" ${attr}="${d.id}">ไฟล์ตัวอย่าง</button>`}
+    </div></div>`;
+}
+function wStep3() {
+  const w = UI.wiz;
+  return {
+    head: `<h2>แนบเอกสาร</h2><p class="muted">ถ่ายรูปจากมือถือได้เลย รองรับไฟล์รูปภาพและ PDF</p>`,
+    main: `<div class="stack">${DOCS.map(d => docRow(d, w.docs[d.id], 'data-doc', d.id === 'repairOut' && w.f.notDone)).join('')}</div>
+      <button class="chipbtn" data-a="sampleAll" style="align-self:flex-start">ใช้ไฟล์ตัวอย่างทั้งหมด</button>`,
+    next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
+  };
+}
+function wStep4() {
+  const w = UI.wiz, f = w.f, c = w.claim;
+  return {
+    head: `<h2>ตรวจทานก่อนยื่น</h2>`,
+    main: `
+      <div class="flat"><div class="row between">${plateHTML(c.plate, c.province, true)}<span class="small mono">${esc(c.claimNo)}</span></div></div>
+      <dl class="kv">
+        <dt>ผู้เรียกร้อง</dt><dd>${esc(c.owner)}</dd>
+        <dt>เบอร์มือถือ</dt><dd class="num">${esc(f.phone)}</dd>
+        <dt>รถเข้าซ่อม</dt><dd>${fmtD(f.repairIn)}</dd>
+        <dt>รับรถคืน</dt><dd>${f.notDone ? 'ยังซ่อมไม่เสร็จ' : fmtD(f.repairOut)}</dd>
+        <dt>บัญชีรับเงิน</dt><dd>${esc(f.bank)} ${maskAcct(f.acct)}</dd>
+        <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length} ไฟล์</dd>
+      </dl>
+      <div class="est">${estBox(c.type, f.repairIn, f.repairOut, f.notDone)}</div>
+      <label class="check"><input type="checkbox" data-w="certify" ${f.certify ? 'checked' : ''}><span>ข้าพเจ้ารับรองว่าข้อมูลและเอกสารทั้งหมดเป็นความจริง</span></label>`,
+    next: `<button class="btn primary" data-a="submit">ยื่นคำร้อง</button>`,
+  };
+}
+
+function done() {
+  const c = getCase(UI.caseId);
+  return `<section class="card" style="align-items:center;text-align:center">
+    <div class="big-ok" aria-hidden="true">✓</div>
+    <h2>ยื่นคำร้องเรียบร้อย</h2>
+    <p class="muted">เลขคำร้องของคุณ</p>
+    <div class="row"><span class="caseno">${esc(c.id)}</span><button class="btn ghost sm" data-a="copy" data-v="${esc(c.id)}">คัดลอก</button></div>
+    <p class="small muted">เราส่งเลขนี้ไปทาง SMS ที่ ${esc(c.phone)} แล้ว (จำลอง)</p>
+    ${c.status === 'WAITING_REPAIR' ? `<div class="alert warn" style="text-align:left"><span class="ico">!</span><span>อย่าลืมกลับมาส่งวันที่รับรถคืนและใบส่งมอบรถ เมื่อรถซ่อมเสร็จ</span></div>` : ''}
+    <button class="btn primary block" data-a="openCase" data-id="${esc(c.id)}">ดูสถานะคำร้อง</button>
+  </section>`;
+}
+
+function trackLookup() {
+  const t = UI.t;
+  return `<section class="card">
+    <h2>ติดตามคำร้อง</h2>
+    ${UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+    <div class="field"><label for="t-id">เลขคำร้อง</label><input class="input mono" id="t-id" data-t="tid" value="${esc(t.tid || '')}" placeholder="LU-2569-0000"></div>
+    <div class="field"><label for="t-ph">เบอร์มือถือที่ใช้ยื่น</label><input class="input num" id="t-ph" data-t="tph" value="${esc(t.tph || '')}" inputmode="tel" maxlength="10"></div>
+    <div class="row between"><button class="btn ghost" data-a="home">กลับ</button><button class="btn primary" data-a="lookup">ดูสถานะ</button></div>
+  </section>
+  <section class="flat"><span class="small"><b>ข้อมูลทดลอง</b> กดเพื่อเปิดคำร้องตัวอย่าง</span>
+    <div class="row">${S.cases.map(c => `<button class="chipbtn" data-a="openCase" data-id="${c.id}">${c.id} · ${esc(ST[c.status].me)}</button>`).join('')}</div>
+  </section>`;
+}
+
+function caseView(c) {
+  const cl = claimOf(c), st = ST[c.status], stage = st.stage;
+  const stages = [['ยื่นคำร้อง', fmtD(c.history[0].at)], ['ตรวจเอกสาร', ''], ['พิจารณาวงเงิน', ''], ['ตอบรับผลพิจารณา', ''], ['รับเงิน', '']];
+  const prog = `<ul class="prog">${stages.map((s, i) => {
+    const cls = i < stage || (stage === 5 && i === 4) ? 'done' : i === stage ? 'now' : 'todo';
+    return `<li class="${cls}"><span class="dot">${cls === 'done' ? '✓' : i + 1}</span><div><div class="t">${s[0]}</div>${i === stage && stage < 5 ? `<div class="small muted">${esc(st.me)}</div>` : ''}</div></li>`;
+  }).join('')}</ul>`;
+  const amountCard = c.approvedAmount && ['OFFERED', 'ACCEPTED', 'PAYMENT_FAILED', 'PAID'].includes(c.status) ? '' : `
+    <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut, !c.repairOut)}</div></section>`;
+  return `
+  <div class="row between"><button class="linkbtn" data-a="home">← หน้าแรก</button><span class="small muted mono">${esc(c.claimNo)}</span></div>
+  <section class="card">
+    <div class="row between">${plateHTML(cl.plate, cl.province)}${pill(c.status, 'me')}</div>
+    <div><p class="small muted">เลขคำร้อง</p><p class="caseno" style="font-size:1.15rem">${esc(c.id)}</p></div>
+    <p>${esc(st.msg)}</p>
+  </section>
+  ${claimantAction(c)}
+  <section class="card"><h3>ความคืบหน้า</h3>${prog}</section>
+  ${amountCard}
+  <section class="card"><h3>ประวัติ</h3>
+    <ul class="tl">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)}<br><span class="by">${h.by === 'claimant' ? 'คุณ' : h.by === 'company' ? 'บริษัท' : 'ระบบ'}</span></span></li>`).join('')}</ul>
+  </section>`;
+}
+
+function offerBreakdown(c) {
+  const r = RATES[c.type].rate, rd = reqDays(c);
+  return `<dl class="kv">
+    <dt>วันที่ขอ</dt><dd class="num">${rd} วัน (${fmtD(c.repairIn)} – ${fmtD(c.repairOut)})</dd>
+    <dt>วันที่อนุมัติ</dt><dd class="num">${c.approvedDays} วัน</dd>
+    <dt>อัตราต่อวัน</dt><dd class="num">${r.toLocaleString('th-TH')} บาท</dd>
+  </dl>
+  <div class="est"><span class="small" style="color:var(--sign-ink)">ยอดอนุมัติ</span><span class="amt">${baht(c.approvedAmount)}</span><span class="formula">${c.approvedDays} วัน × ${r.toLocaleString('th-TH')} บาท</span></div>
+  ${c.adjustReason ? `<div class="alert info"><span class="ico">i</span><span><b>เหตุผลที่ยอดต่างจากที่ขอ:</b> ${esc(c.adjustReason)}</span></div>` : ''}`;
+}
+
+function claimantAction(c) {
+  const t = UI.t;
+  if (c.status === 'WAITING_REPAIR') {
+    return `<section class="card"><h3>ส่งวันที่รับรถคืน</h3>
+      ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+      <div class="field"><label for="c-out">วันที่รับรถคืน</label><input class="input" type="date" id="c-out" data-t="out" value="${esc(t.out || '')}" min="${c.repairIn}" max="${todayISO()}"></div>
+      ${docRow(DOCS[4], t.doc_repairOut, 'data-cdoc')}
+      <button class="btn primary" data-a="sendRepairOut">ส่งข้อมูล</button></section>`;
+  }
+  if (c.status === 'NEED_INFO') {
+    const need = c.needInfo?.docs || [];
+    return `<section class="card"><h3>เอกสารที่ต้องส่งเพิ่ม</h3>
+      ${c.needInfo?.note ? `<div class="alert warn"><span class="ico">!</span><span><b>ข้อความจากเจ้าหน้าที่:</b> ${esc(c.needInfo.note)}</span></div>` : ''}
+      ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+      <div class="stack">${need.map(id => docRow(DOCS.find(d => d.id === id), t['doc_' + id], 'data-cdoc')).join('')}</div>
+      <button class="btn primary" data-a="sendMore">ส่งเอกสารเพิ่ม</button></section>`;
+  }
+  if (c.status === 'OFFERED') {
+    return `<section class="card"><h3>ผลพิจารณาวงเงิน</h3>${offerBreakdown(c)}
+      <button class="btn primary block" data-a="openSign">ตอบรับและลงนามด้วย OTP</button>
+      ${c.appealCount < 1 ? `<button class="btn ghost block" data-a="openAppeal">ไม่เห็นด้วย ขอทบทวน</button>` : `<p class="small muted">คุณใช้สิทธิ์ขอทบทวนแล้ว หากยังไม่เห็นด้วย ติดต่อ คปภ. สายด่วน 1186</p>`}</section>`;
+  }
+  if (c.status === 'ACCEPTED') {
+    return `<section class="card"><h3>รอโอนเงิน</h3><dl class="kv"><dt>ยอดเงิน</dt><dd class="num">${baht(c.approvedAmount)}</dd><dt>เข้าบัญชี</dt><dd>${esc(c.bank.name)} ${maskAcct(c.bank.acct)}</dd><dt>ลงนามเมื่อ</dt><dd>${fmtDT(c.signedAt)}</dd></dl>
+      <p class="small muted">ปกติเงินเข้าภายใน 3 วันทำการหลังตอบรับ</p></section>`;
+  }
+  if (c.status === 'PAYMENT_FAILED') {
+    return `<section class="card"><h3>แก้ไขบัญชีรับเงิน</h3>
+      <div class="alert bad"><span class="ico">!</span><span>${esc(c.payment?.error || 'ธนาคารปฏิเสธการโอน')}</span></div>
+      ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+      <div class="grid2">
+        <div class="field"><label for="c-bank">ธนาคาร</label><select class="input" id="c-bank" data-t="bank">${BANKS.map(b => `<option ${b === (t.bank || c.bank.name) ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
+        <div class="field"><label for="c-acct">เลขที่บัญชี</label><input class="input num" id="c-acct" data-t="acct" value="${esc(t.acct ?? '')}" inputmode="numeric" maxlength="12" placeholder="ตัวเลข 10–12 หลัก"></div>
+      </div>
+      <dl class="kv"><dt>ชื่อบัญชี</dt><dd>${esc(c.holder)}</dd></dl>
+      <button class="btn primary" data-a="fixBank">บันทึกบัญชีใหม่</button></section>`;
+  }
+  if (c.status === 'PAID') {
+    return `<section class="card"><h3>ได้รับเงินแล้ว</h3>
+      <dl class="kv"><dt>ยอดเงิน</dt><dd class="num">${baht(c.approvedAmount)}</dd><dt>เข้าบัญชี</dt><dd>${esc(c.bank.name)} ${maskAcct(c.bank.acct)}</dd><dt>วันที่โอน</dt><dd>${fmtDT(c.payment.at)}</dd><dt>เลขอ้างอิง</dt><dd class="mono">${esc(c.payment.ref)}</dd></dl>
+      <div class="stack"><button class="btn primary" data-a="docLetter" data-id="${c.id}">ดูหนังสือยืนยันการจ่ายเงิน</button>
+      <button class="btn ghost" data-a="docConsent" data-id="${c.id}">ดูสำเนาหนังสือยินยอมที่ลงนาม</button></div></section>`;
+  }
+  return '';
+}
+
+/* =================== BACK OFFICE =================== */
+const FILTERS = [
+  ['todo', 'งานที่ต้องทำ', ['SUBMITTED', 'UNDER_REVIEW', 'PENDING_APPROVAL', 'ACCEPTED']],
+  ['wait', 'รอผู้เรียกร้อง', ['WAITING_REPAIR', 'NEED_INFO', 'OFFERED', 'PAYMENT_FAILED']],
+  ['paid', 'จ่ายแล้ว', ['PAID']],
+  ['all', 'ทั้งหมด', Object.keys(ST)],
+];
+function renderBO() {
+  const f = FILTERS.find(x => x[0] === UI.boFilter);
+  const list = S.cases.filter(c => f[2].includes(c.status));
+  const cur = getCase(UI.boId) || list[0];
+  const counts = FILTERS.map(x => S.cases.filter(c => x[2].includes(c.status)).length);
+  const totalPaid = S.cases.filter(c => c.status === 'PAID').reduce((s, c) => s + c.approvedAmount, 0);
+  return `<main class="wrap-wide">
+    <div class="row between" style="margin-bottom:14px">
+      <div><h2>คำร้องค่าขาดประโยชน์</h2><p class="small muted">${S.cases.length} คำร้อง · จ่ายแล้วรวม ${baht(totalPaid)}</p></div>
+      <details class="card" style="padding:12px 16px;gap:10px;max-width:100%"><summary>อัตราและอำนาจอนุมัติ</summary>
+        <div style="overflow-x:auto"><table class="tbl"><tr><th>ประเภทรถ</th><th class="r">บาท/วัน</th></tr>${Object.values(RATES).map(r => `<tr><td>${esc(r.label)}</td><td class="r num">${r.rate.toLocaleString('th-TH')}</td></tr>`).join('')}</table></div>
+        <div style="overflow-x:auto"><table class="tbl"><tr><th>ยอดอนุมัติ</th><th>ต้องอนุมัติถึง</th></tr>
+          <tr><td class="num">ไม่เกิน 5,000</td><td>Step 1 · ${TIERS[0].role}</td></tr>
+          <tr><td class="num">5,001 – 20,000</td><td>Step 2 · ${TIERS[1].role}</td></tr>
+          <tr><td class="num">เกิน 20,000</td><td>Step 3 · ${TIERS[2].role}</td></tr></table></div>
+        <p class="small muted">ยอด 20,001–50,000 ยังไม่ได้กำหนด ระบบจำลองนี้ให้ไป Step 3</p>
+      </details>
+    </div>
+    <div class="bo">
+      <aside class="stack">
+        <div class="filters" role="group" aria-label="ตัวกรอง">${FILTERS.map((x, i) => `<button data-a="boFilter" data-v="${x[0]}" aria-pressed="${UI.boFilter === x[0]}">${x[1]} <span class="num">${counts[i]}</span></button>`).join('')}</div>
+        <div class="q">${list.length ? list.map(c => { const cl = claimOf(c); return `
+          <button class="qi" data-a="boOpen" data-id="${c.id}" aria-current="${cur && cur.id === c.id}">
+            ${plateHTML(cl.plate, cl.province, true)}
+            <span><span class="qn">${esc(cl.owner)}</span><br><span class="small muted mono">${c.id}</span></span>
+            ${pill(c.status, 'bo')}
+            <span class="qm"><span>${esc(RATES[c.type].label)}</span><span class="num">${c.approvedAmount ? baht(c.approvedAmount) : 'ขอ ' + baht(reqAmount(c))}</span></span>
+          </button>`; }).join('') : `<p class="muted small" style="padding:12px">ไม่มีคำร้องในกลุ่มนี้</p>`}</div>
+      </aside>
+      <section class="stack">${cur && list.includes(cur) ? boDetail(cur) : cur ? boDetail(cur) : `<div class="card"><p class="muted">เลือกคำร้องจากรายการ</p></div>`}</section>
+    </div></main>`;
+}
+
+function boDetail(c) {
+  const cl = claimOf(c);
+  return `
+  <div class="card">
+    <div class="row between"><div class="row">${plateHTML(cl.plate, cl.province)}<div><h3>${esc(cl.owner)}</h3><p class="small muted mono">${c.id} · ${esc(c.claimNo)}</p></div></div>${pill(c.status, 'bo')}</div>
+    <div class="grid2">
+      <dl class="kv">
+        <dt>รถ</dt><dd>${esc(cl.model)}</dd>
+        <dt>ประเภท</dt><dd>${esc(RATES[c.type].label)}</dd>
+        <dt>เกิดเหตุ</dt><dd>${fmtD(cl.accident)}</dd>
+        <dt>ผู้เอาประกัน (ผิด)</dt><dd>${esc(cl.insuredPlate)}</dd>
+      </dl>
+      <dl class="kv">
+        <dt>เข้าซ่อม</dt><dd>${fmtD(c.repairIn)}</dd>
+        <dt>รับรถคืน</dt><dd>${c.repairOut ? fmtD(c.repairOut) : 'ยังไม่เสร็จ'}</dd>
+        <dt>วันที่ขอ</dt><dd class="num">${reqDays(c)} วัน = ${baht(reqAmount(c))}</dd>
+        <dt>บัญชี</dt><dd>${esc(c.bank.name)} ${esc(c.bank.acct)}<br><span class="small muted">${esc(c.holder)}</span></dd>
+      </dl>
+    </div>
+  </div>
+  ${boAction(c)}
+  <div class="card"><h3>เอกสาร</h3><div class="stack">${DOCS.map(d => `<div class="doc ${c.docs[d.id] ? 'has' : ''}"><span class="dico">${c.docs[d.id] ? '✓' : '–'}</span><div class="dtxt"><div class="dname">${esc(d.label)}</div><div class="small muted">${esc(c.docs[d.id] || 'ยังไม่มี')}</div></div></div>`).join('')}</div></div>
+  <div class="card"><h3>ประวัติการดำเนินการ</h3><ul class="tl">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)}<br><span class="by">${h.by === 'claimant' ? 'ผู้เรียกร้อง' : h.by === 'company' ? 'บริษัท' : 'ระบบ'}</span></span></li>`).join('')}</ul></div>`;
+}
+
+function chainHTML(c) {
+  const need = requiredStep(c.approvedAmount);
+  return `<div class="chain">${TIERS.map(t => {
+    const a = c.approvals.find(x => x.step === t.step);
+    const cls = t.step > need ? 'skip' : a ? 'ok' : t.step === c.approvals.length + 1 ? 'next' : '';
+    return `<div class="lv ${cls}"><span class="lvh">Step ${t.step}</span><span>${esc(t.role)}</span><span class="small">${t.step > need ? 'ไม่ต้องอนุมัติ' : a ? `✓ ${esc(a.who)} · ${fmtDT(a.at)}` : cls === 'next' ? 'รออนุมัติ' : 'รอคิว'}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function boAction(c) {
+  const t = UI.t;
+  const errBox = UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : '';
+  if (c.status === 'SUBMITTED') {
+    const missing = DOCS.filter(d => !c.docs[d.id]);
+    return `<div class="card"><h3>ตรวจเอกสาร</h3>${errBox}
+      ${missing.length ? `<div class="alert warn"><span class="ico">!</span><span>ยังขาด: ${missing.map(d => esc(d.label)).join(', ')}</span></div>` : `<div class="alert ok"><span class="ico">✓</span><span>เอกสารครบ ${DOCS.length} รายการ</span></div>`}
+      <div class="row"><button class="btn primary" data-a="boDocsOk" ${missing.length ? 'disabled' : ''}>เอกสารครบ ส่งพิจารณาวงเงิน</button><button class="btn ghost" data-a="boToggleNeed">ขอเอกสารเพิ่ม</button></div>
+      ${t.needOpen ? `<div class="flat"><span class="small"><b>เลือกเอกสารที่ต้องการ</b></span>
+        ${DOCS.map(d => `<label class="check"><input type="checkbox" data-t="need_${d.id}" ${t['need_' + d.id] ? 'checked' : ''}><span>${esc(d.label)}</span></label>`).join('')}
+        <div class="field"><label for="bo-note">ข้อความถึงผู้เรียกร้อง</label><textarea class="input" id="bo-note" data-t="note" placeholder="เช่น รูปบัตรประชาชนไม่ชัด กรุณาถ่ายใหม่">${esc(t.note || '')}</textarea></div>
+        <button class="btn primary sm" data-a="boNeed" style="align-self:flex-start">ส่งคำขอเอกสาร</button></div>` : ''}</div>`;
+  }
+  if (c.status === 'UNDER_REVIEW') {
+    const rd = reqDays(c), r = RATES[c.type].rate;
+    const ad = t.adays ?? rd, amt = (Number(ad) || 0) * r, need = requiredStep(amt);
+    const appeal = c.history.slice().reverse().find(h => h.text.startsWith('ขอทบทวน'));
+    return `<div class="card"><h3>พิจารณาวงเงิน</h3>${errBox}
+      ${c.appealCount && appeal ? `<div class="alert info"><span class="ico">i</span><span><b>ผู้เรียกร้องขอทบทวน:</b> ${esc(appeal.text.replace(/^ขอทบทวน:\s*/, ''))}</span></div>` : ''}
+      ${rd > 30 ? `<div class="alert warn"><span class="ico">!</span><span>ระยะเวลาซ่อม ${rd} วัน นานกว่าปกติ ควรตรวจสาเหตุ</span></div>` : ''}
+      <div class="grid2">
+        <div class="field"><label for="bo-days">จำนวนวันที่อนุมัติ</label><input class="input num" type="number" id="bo-days" data-t="adays" min="0" max="${rd}" value="${esc(ad)}"><span class="hint">ขอมา ${rd} วัน</span></div>
+        <div class="field"><label>อัตราต่อวัน</label><div class="input num" style="background:var(--sunk)">${r.toLocaleString('th-TH')} บาท</div></div>
+      </div>
+      <div class="est" id="boEst"><span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span></div>
+      <div class="field"><label for="bo-reason">เหตุผลที่ปรับลด <span class="muted small">(จำเป็นถ้าน้อยกว่าที่ขอ)</span></label><textarea class="input" id="bo-reason" data-t="reason">${esc(t.reason || '')}</textarea></div>
+      <button class="btn primary" data-a="boPropose" style="align-self:flex-start">เสนอยอดเข้าสายอนุมัติ</button></div>`;
+  }
+  if (c.status === 'PENDING_APPROVAL') {
+    const next = TIERS[c.approvals.length];
+    return `<div class="card"><h3>สายอนุมัติวงเงิน</h3>
+      <div class="row between"><span>ยอดเสนอ <b class="num">${baht(c.approvedAmount)}</b> <span class="muted small">(${c.approvedDays} วัน × ${RATES[c.type].rate.toLocaleString('th-TH')})</span></span></div>
+      ${c.adjustReason ? `<p class="small"><b>เหตุผลปรับลด:</b> ${esc(c.adjustReason)}</p>` : ''}
+      ${chainHTML(c)}
+      <div class="row"><button class="btn primary" data-a="boApprove">อนุมัติในฐานะ Step ${next.step} (${esc(next.who)})</button><button class="btn danger" data-a="boReturn">ตีกลับให้พิจารณาใหม่</button></div></div>`;
+  }
+  if (c.status === 'OFFERED') return `<div class="card"><h3>แจ้งผลแล้ว</h3><p>ยอดอนุมัติ <b class="num">${baht(c.approvedAmount)}</b> รอผู้เรียกร้องตอบรับ</p>${chainHTML(c)}
+    <p class="small muted">ลองสลับไปมุมมองผู้เรียกร้อง แล้วเปิดคำร้อง ${c.id} เพื่อตอบรับ</p></div>`;
+  if (c.status === 'ACCEPTED' || c.status === 'PAYMENT_FAILED' || c.status === 'PAID') {
+    const lg = UI.bankLog[c.id] || c.payment?.log;
+    return `<div class="card"><h3>${c.status === 'PAID' ? 'การจ่ายเงิน' : 'ฝ่ายการเงิน: โอนเงิน'}</h3>
+      <dl class="kv"><dt>ผู้รับเงิน</dt><dd>${esc(c.holder)}</dd><dt>บัญชี</dt><dd>${esc(c.bank.name)} ${esc(c.bank.acct)}</dd><dt>ยอดเงิน</dt><dd class="num">${baht(c.approvedAmount)}</dd><dt>ลงนามตอบรับ</dt><dd>${c.signedAt ? fmtDT(c.signedAt) : '–'}</dd></dl>
+      ${c.status === 'ACCEPTED' ? `<div class="alert ok"><span class="ico">✓</span><span>ชื่อบัญชีตรงกับเจ้าของรถตามทะเบียน</span></div><button class="btn primary" data-a="boPay" style="align-self:flex-start">โอนเงินผ่าน API ธนาคาร (จำลอง)</button>` : ''}
+      ${c.status === 'PAYMENT_FAILED' ? `<div class="alert warn"><span class="ico">!</span><span>รอผู้เรียกร้องแก้ไขบัญชี</span></div>` : ''}
+      ${lg ? `<div class="console" aria-label="บันทึกการเรียก API">${esc(lg)}</div>` : ''}
+      ${c.status === 'PAID' ? `<div class="row"><button class="btn ghost sm" data-a="docLetter" data-id="${c.id}">หนังสือยืนยันการจ่ายเงิน</button><button class="btn ghost sm" data-a="docConsent" data-id="${c.id}">หนังสือยินยอม</button></div>` : ''}</div>`;
+  }
+  return `<div class="card"><h3>รอผู้เรียกร้อง</h3><p class="muted">${esc(ST[c.status].bo)} ไม่มีงานที่ต้องทำในตอนนี้</p></div>`;
+}
+
+/* =================== modal =================== */
+function renderModal() {
+  const m = UI.modal, host = $('#modal');
+  if (!m) { host.innerHTML = ''; return; }
+  const c = getCase(m.id), cl = claimOf(c);
+  let inner = '';
+  if (m.type === 'sign') {
+    inner = `<h2>ลงนามตอบรับผลพิจารณา</h2>
+      <div class="consent">
+        <p>ข้าพเจ้า <b>${esc(cl.owner)}</b> เจ้าของรถทะเบียน ${esc(cl.plate)} ${esc(cl.province)} ตกลงรับค่าขาดประโยชน์จาก ${COMPANY} จำนวน <b>${baht(c.approvedAmount)}</b> (${c.approvedDays} วัน) จากเหตุเมื่อวันที่ ${fmtD(cl.accident)}</p>
+        <p><mark>เมื่อได้รับเงินแล้ว ข้าพเจ้าจะไม่เรียกร้องค่าขาดประโยชน์เพิ่มเติมจากเหตุการณ์นี้อีก</mark></p>
+        <p class="small muted">ไม่กระทบสิทธิ์เรียกร้องค่าซ่อมรถหรือค่าเสียหายประเภทอื่น</p>
+      </div>
+      ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+      <div class="field"><label for="m-otp">รหัส OTP ที่ส่งไปยัง ${esc(c.phone.slice(0, 3))}-xxx-${esc(c.phone.slice(-4))}</label><input class="input otp" id="m-otp" data-t="sotp" inputmode="numeric" maxlength="6" value="${esc(UI.t.sotp || '')}"><span class="hint">ระบบจำลอง: ใช้รหัส <b class="mono">${OTP}</b></span></div>
+      <div class="row between"><button class="btn ghost" data-a="closeModal">ยกเลิก</button><button class="btn primary" data-a="sign">ลงนามและตอบรับ</button></div>`;
+  } else if (m.type === 'appeal') {
+    inner = `<h2>ขอทบทวนผลพิจารณา</h2><p class="muted small">ขอทบทวนได้ 1 ครั้ง อธิบายเหตุผลและแนบหลักฐานเพิ่ม (ถ้ามี)</p>
+      ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+      <div class="field"><label for="m-why">เหตุผล</label><textarea class="input" id="m-why" data-t="why" placeholder="เช่น อู่รออะไหล่จากศูนย์ 5 วัน มีใบแจ้งจากอู่ยืนยัน">${esc(UI.t.why || '')}</textarea></div>
+      <div class="row between"><button class="btn ghost" data-a="closeModal">ยกเลิก</button><button class="btn primary" data-a="appeal">ส่งคำขอทบทวน</button></div>`;
+  } else if (m.type === 'letter') {
+    inner = `<div class="paper">
+      <div class="ph"><b>${COMPANY}</b><span>ที่ ${esc(c.id)}</span></div>
+      <h3>หนังสือยืนยันการจ่ายค่าขาดประโยชน์</h3>
+      <p>เรียน คุณ${esc(cl.owner)}</p>
+      <p>บริษัทได้ชำระค่าขาดประโยชน์จากการใช้รถยนต์ ตามคำร้องเลขที่ ${esc(c.id)} เรียบร้อยแล้ว ตามรายละเอียดดังนี้</p>
+      <table>
+        <tr><td>เลขเคลม</td><td>${esc(c.claimNo)}</td></tr>
+        <tr><td>รถยนต์ทะเบียน</td><td>${esc(cl.plate)} ${esc(cl.province)}</td></tr>
+        <tr><td>วันที่เกิดเหตุ</td><td>${fmtD(cl.accident)}</td></tr>
+        <tr><td>ระยะเวลาซ่อม</td><td>${fmtD(c.repairIn)} – ${fmtD(c.repairOut)}</td></tr>
+        <tr><td>จำนวนวันที่อนุมัติ</td><td>${c.approvedDays} วัน × ${RATES[c.type].rate.toLocaleString('th-TH')} บาท</td></tr>
+        <tr><td>จำนวนเงิน</td><td><b>${baht(c.approvedAmount)}</b></td></tr>
+        <tr><td>โอนเข้าบัญชี</td><td>${esc(c.bank.name)} ${maskAcct(c.bank.acct)} (${esc(c.holder)})</td></tr>
+        <tr><td>วันที่โอน</td><td>${fmtDT(c.payment.at)}</td></tr>
+        <tr><td>เลขอ้างอิงธนาคาร</td><td>${esc(c.payment.ref)}</td></tr>
+      </table>
+      <p>จึงเรียนมาเพื่อโปรดทราบ</p>
+      <span class="stamp">ชำระแล้ว</span>
+      <p style="font-size:.75rem;color:#666">เอกสารนี้ออกโดยระบบอิเล็กทรอนิกส์ (ตัวอย่างจากโปรแกรมจำลอง)</p></div>
+      <button class="btn ghost" data-a="closeModal">ปิด</button>`;
+  } else if (m.type === 'consent') {
+    inner = `<div class="paper">
+      <div class="ph"><b>${COMPANY}</b><span>สำเนา</span></div>
+      <h3>หนังสือยินยอมรับค่าขาดประโยชน์</h3>
+      <p>ข้าพเจ้า ${esc(cl.owner)} เจ้าของรถยนต์ทะเบียน ${esc(cl.plate)} ${esc(cl.province)} ตกลงรับค่าขาดประโยชน์จำนวน ${baht(c.approvedAmount)} (${c.approvedDays} วัน) ตามคำร้องเลขที่ ${esc(c.id)} และจะไม่เรียกร้องค่าขาดประโยชน์เพิ่มเติมจากเหตุการณ์เมื่อวันที่ ${fmtD(cl.accident)} อีก</p>
+      <table><tr><td>ลงนามด้วย OTP</td><td>${fmtDT(c.signedAt)}</td></tr><tr><td>เบอร์มือถือ</td><td>${esc(c.phone.slice(0, 3))}-xxx-${esc(c.phone.slice(-4))}</td></tr></table></div>
+      <button class="btn ghost" data-a="closeModal">ปิด</button>`;
+  }
+  host.innerHTML = `<div class="ov" data-a="ovClose"><div class="modal" role="dialog" aria-modal="true">${inner}</div></div>`;
+}
+
+/* =================== actions =================== */
+function wizValidate() {
+  const w = UI.wiz, f = w.f;
+  if (w.step === 1) {
+    if (!/^0\d{9}$/.test(f.phone)) return 'กรอกเบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0';
+    if (!w.otpSent) return 'กด "ขอรหัส OTP" ก่อน';
+    if (f.otp !== OTP) return 'รหัส OTP ไม่ถูกต้อง ลองอีกครั้ง';
+    if (!f.pdpa) return 'กรุณาให้ความยินยอมการใช้ข้อมูลเพื่อดำเนินการต่อ';
+  }
+  if (w.step === 2) {
+    if (!f.repairIn) return 'กรอกวันที่รถเข้าซ่อม';
+    if (f.repairIn < w.claim.accident) return 'วันที่รถเข้าซ่อมต้องไม่ก่อนวันเกิดเหตุ';
+    if (f.repairIn > todayISO()) return 'วันที่รถเข้าซ่อมต้องไม่เกินวันนี้';
+    if (!f.notDone) {
+      if (!f.repairOut) return 'กรอกวันที่รับรถคืน หรือเลือก "รถยังซ่อมไม่เสร็จ"';
+      if (f.repairOut < f.repairIn) return 'วันที่รับรถคืนต้องไม่ก่อนวันที่รถเข้าซ่อม';
+      if (f.repairOut > todayISO()) return 'วันที่รับรถคืนต้องไม่เกินวันนี้';
+    }
+    if (!f.bank) return 'เลือกธนาคาร';
+    if (!/^\d{10,12}$/.test(f.acct)) return 'เลขบัญชีต้องเป็นตัวเลข 10–12 หลัก';
+  }
+  if (w.step === 3) {
+    const miss = DOCS.filter(d => !(d.id === 'repairOut' && f.notDone) && !w.docs[d.id]);
+    if (miss.length) return 'ยังขาดเอกสาร: ' + miss.map(d => d.label).join(', ');
+  }
+  return '';
+}
+function verify() {
+  const w = UI.wiz;
+  w.claim = null;
+  const c = CLAIMS.find(x => x.claimNo === w.f.claimNo.trim().toUpperCase());
+  if (!c || normPlate(c.plate) !== normPlate(w.f.plate)) return w.err = 'ไม่พบเลขเคลมนี้คู่กับทะเบียนรถที่กรอก ตรวจตัวอักษรบนใบเคลมอีกครั้ง';
+  if (c.role !== 'victim') return w.err = 'จากผลสำรวจภัย รถคันนี้เป็นฝ่ายผิดในเหตุการณ์ จึงยื่นค่าขาดประโยชน์ผ่านช่องทางนี้ไม่ได้ หากไม่เห็นด้วยติดต่อ 1234 (จำลอง)';
+  const dup = S.cases.find(x => x.claimNo === c.claimNo);
+  if (dup) return w.err = `เคลมนี้ยื่นค่าขาดประโยชน์ไปแล้ว (คำร้อง ${dup.id}) <button class="btn ghost sm" data-a="openCase" data-id="${dup.id}">ดูสถานะ</button>`;
+  if (addYears(c.accident, 2) < todayISO()) return w.err = 'เกินกำหนดยื่น 2 ปีนับจากวันเกิดเหตุแล้ว';
+  w.err = ''; w.claim = c;
+}
+function submit() {
+  const w = UI.wiz, f = w.f, c = w.claim;
+  if (!f.certify) { w.err = 'กรุณารับรองความถูกต้องของข้อมูล'; return; }
+  S.seq += 1;
+  const id = 'LU-2569-' + String(S.seq).padStart(4, '0');
+  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:f.notDone ? '' : f.repairOut, bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
+    docs:{ ...w.docs }, status: f.notDone ? 'WAITING_REPAIR' : 'SUBMITTED', approvals:[], appealCount:0, history:[] };
+  log(k, f.notDone ? 'ยื่นคำร้อง (รถยังซ่อมไม่เสร็จ)' : 'ยื่นคำร้อง', 'claimant');
+  S.cases.unshift(k); save();
+  UI.caseId = id; UI.page = 'done'; UI.wiz = newWiz();
+}
+const sampleName = id => ({ idcard:'IMG_บัตรประชาชน.jpg', carbook:'IMG_ทะเบียนรถ.jpg', bankbook:'IMG_สมุดบัญชี.jpg', repairIn:'ใบรับรถ_อู่ช่างเอก.pdf', repairOut:'ใบส่งมอบรถ_อู่ช่างเอก.pdf' }[id]);
+
+const A = {
+  view: b => { UI.view = b.dataset.v; UI.err = ''; UI.t = {}; try { localStorage.setItem(KEY + '-view', UI.view); } catch (e) {} },
+  reset: () => { S = seed(); save(); UI = { ...UI, page:'home', wiz:newWiz(), caseId:null, boId:null, t:{}, err:'', modal:null, bankLog:{} }; },
+  home: () => { UI.page = 'home'; UI.err = ''; UI.t = {}; },
+  startWiz: () => { UI.wiz = newWiz(); UI.page = 'wizard'; },
+  goTrack: () => { UI.page = 'track'; UI.err = ''; UI.t = {}; },
+  fillClaim: b => { const c = CLAIMS[+b.dataset.i]; UI.wiz.f.claimNo = c.claimNo; UI.wiz.f.plate = c.plate; UI.wiz.claim = null; UI.wiz.err = ''; },
+  verify: () => verify(),
+  wizBack: () => { UI.wiz.err = ''; UI.wiz.step -= 1; },
+  wizNext: () => { const e = wizValidate(); UI.wiz.err = e; if (!e) UI.wiz.step += 1; },
+  sendOtp: () => { const p = UI.wiz.f.phone; if (!/^0\d{9}$/.test(p)) { UI.wiz.err = 'กรอกเบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0'; return; } UI.wiz.err = ''; UI.wiz.otpSent = true; },
+  sampleDoc: b => { if (b.dataset.doc) UI.wiz.docs[b.dataset.doc] = sampleName(b.dataset.doc); else UI.t['doc_' + b.dataset.cdoc] = sampleName(b.dataset.cdoc); },
+  sampleAll: () => DOCS.forEach(d => { if (!(d.id === 'repairOut' && UI.wiz.f.notDone)) UI.wiz.docs[d.id] = sampleName(d.id); }),
+  submit: () => submit(),
+  copy: b => { const v = b.dataset.v; try { navigator.clipboard.writeText(v).then(() => { b.textContent = 'คัดลอกแล้ว'; }, () => {}); } catch (e) {} return false; },
+  openCase: b => { UI.view = 'claimant'; UI.caseId = b.dataset.id; UI.page = 'case'; UI.err = ''; UI.t = {}; UI.wiz.err = ''; },
+  lookup: () => { const c = getCase((UI.t.tid || '').trim().toUpperCase()); if (!c || c.phone !== (UI.t.tph || '').trim()) { UI.err = 'ไม่พบคำร้อง ตรวจเลขคำร้องและเบอร์มือถืออีกครั้ง'; return; } UI.err = ''; UI.caseId = c.id; UI.page = 'case'; UI.t = {}; },
+  sendRepairOut: () => {
+    const c = getCase(UI.caseId), out = UI.t.out;
+    if (!out || out < c.repairIn || out > todayISO()) { UI.err = 'กรอกวันที่รับรถคืนให้ถูกต้อง (ไม่ก่อนวันเข้าซ่อม และไม่เกินวันนี้)'; return; }
+    if (!UI.t.doc_repairOut) { UI.err = 'แนบใบส่งมอบรถ'; return; }
+    c.repairOut = out; c.docs.repairOut = UI.t.doc_repairOut; c.status = 'SUBMITTED';
+    log(c, `ส่งวันที่รับรถคืน ${fmtD(out)} และใบส่งมอบรถ`, 'claimant'); save(); UI.t = {}; UI.err = '';
+  },
+  sendMore: () => {
+    const c = getCase(UI.caseId), need = c.needInfo?.docs || [];
+    const miss = need.filter(id => !UI.t['doc_' + id]);
+    if (miss.length) { UI.err = 'ยังไม่ได้แนบ: ' + miss.map(docLabel).join(', '); return; }
+    need.forEach(id => { c.docs[id] = UI.t['doc_' + id]; });
+    c.status = 'SUBMITTED'; delete c.needInfo; log(c, 'ส่งเอกสารเพิ่ม: ' + need.map(docLabel).join(', '), 'claimant'); save(); UI.t = {}; UI.err = '';
+  },
+  openSign: () => { UI.modal = { type:'sign', id:UI.caseId }; UI.err = ''; UI.t = {}; },
+  openAppeal: () => { UI.modal = { type:'appeal', id:UI.caseId }; UI.err = ''; UI.t = {}; },
+  closeModal: () => { UI.modal = null; UI.err = ''; },
+  ovClose: (b, e) => { if (e.target === b) { UI.modal = null; UI.err = ''; } else return false; },
+  sign: () => {
+    if (UI.t.sotp !== OTP) { UI.err = 'รหัส OTP ไม่ถูกต้อง'; return; }
+    const c = getCase(UI.modal.id); c.status = 'ACCEPTED'; c.signedAt = new Date().toISOString();
+    log(c, `ลงนามตอบรับผลพิจารณา ${baht(c.approvedAmount)} ด้วย OTP`, 'claimant'); save(); UI.modal = null; UI.t = {}; UI.err = '';
+  },
+  appeal: () => {
+    const why = (UI.t.why || '').trim(); if (why.length < 10) { UI.err = 'อธิบายเหตุผลอย่างน้อย 10 ตัวอักษร'; return; }
+    const c = getCase(UI.modal.id); c.status = 'UNDER_REVIEW'; c.appealCount += 1; c.approvals = []; delete c.adjustReason;
+    log(c, 'ขอทบทวน: ' + why, 'claimant'); save(); UI.modal = null; UI.t = {}; UI.err = '';
+  },
+  fixBank: () => {
+    const c = getCase(UI.caseId), acct = (UI.t.acct || '').trim();
+    if (!/^\d{10,12}$/.test(acct)) { UI.err = 'เลขบัญชีต้องเป็นตัวเลข 10–12 หลัก'; return; }
+    c.bank = { name: UI.t.bank || c.bank.name, acct }; c.status = 'ACCEPTED'; delete UI.bankLog[c.id];
+    log(c, `แก้ไขบัญชีรับเงินเป็น ${c.bank.name} ${maskAcct(acct)}`, 'claimant'); save(); UI.t = {}; UI.err = '';
+  },
+  docLetter: b => { UI.modal = { type:'letter', id:b.dataset.id }; },
+  docConsent: b => { UI.modal = { type:'consent', id:b.dataset.id }; },
+  // back office
+  boFilter: b => { UI.boFilter = b.dataset.v; UI.boId = null; UI.t = {}; UI.err = ''; },
+  boOpen: b => { UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; },
+  boToggleNeed: () => { UI.t.needOpen = !UI.t.needOpen; },
+  boDocsOk: () => { const c = curBO(); c.status = 'UNDER_REVIEW'; log(c, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); save(); UI.t = {}; },
+  boNeed: () => {
+    const c = curBO(), ids = DOCS.filter(d => UI.t['need_' + d.id]).map(d => d.id);
+    if (!ids.length) { UI.err = 'เลือกเอกสารอย่างน้อย 1 รายการ'; return; }
+    c.needInfo = { docs: ids, note: (UI.t.note || '').trim() }; c.status = 'NEED_INFO';
+    log(c, 'ขอเอกสารเพิ่ม: ' + ids.map(docLabel).join(', '), 'company'); save(); UI.t = {}; UI.err = '';
+  },
+  boPropose: () => {
+    const c = curBO(), rd = reqDays(c), ad = Number(UI.t.adays ?? rd), reason = (UI.t.reason || '').trim();
+    if (!Number.isInteger(ad) || ad < 1 || ad > rd) { UI.err = `จำนวนวันต้องอยู่ระหว่าง 1–${rd}`; return; }
+    if (ad < rd && reason.length < 5) { UI.err = 'อนุมัติน้อยกว่าที่ขอ ต้องระบุเหตุผลให้ผู้เรียกร้องเข้าใจ'; return; }
+    const r = RATES[c.type].rate; c.approvedDays = ad; c.approvedAmount = ad * r; c.approvals = [];
+    if (ad < rd) c.adjustReason = reason; else delete c.adjustReason;
+    c.status = 'PENDING_APPROVAL';
+    log(c, `เสนอยอด ${ad} วัน × ${r.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${requiredStep(c.approvedAmount)})`, 'company'); save(); UI.t = {}; UI.err = '';
+  },
+  boApprove: () => {
+    const c = curBO(), t = TIERS[c.approvals.length];
+    c.approvals.push({ step:t.step, who:t.who, at:new Date().toISOString() });
+    if (c.approvals.length >= requiredStep(c.approvedAmount)) { c.status = 'OFFERED'; log(c, `Step ${t.step} อนุมัติ (${t.who}) แจ้งผลพิจารณาแล้ว`, 'company'); }
+    else log(c, `Step ${t.step} อนุมัติ (${t.who})`, 'company');
+    save();
+  },
+  boReturn: () => { const c = curBO(); c.status = 'UNDER_REVIEW'; c.approvals = []; log(c, 'ตีกลับให้พิจารณายอดใหม่', 'company'); save(); },
+  boPay: () => {
+    const c = curBO(), now = new Date(), ref = 'BNK' + now.toISOString().replace(/\D/g, '').slice(2, 14);
+    const fail = /0000$/.test(c.bank.acct);
+    const req = { endpoint:'POST /v1/transfers', idempotencyKey:c.id + '-' + (c.history.length), amount:c.approvedAmount, currency:'THB', toBank:c.bank.name, toAccount:c.bank.acct, accountName:c.holder, reference:c.id };
+    const res = fail ? { status:422, code:'ACCOUNT_INVALID', message:'Destination account closed or name mismatch' } : { status:200, code:'SUCCESS', transactionRef:ref, settledAt:now.toISOString() };
+    const lg = '→ ' + JSON.stringify(req, null, 2) + '\n← ' + JSON.stringify(res, null, 2);
+    UI.bankLog[c.id] = lg;
+    if (fail) { c.status = 'PAYMENT_FAILED'; c.payment = { error:'ธนาคารปฏิเสธการโอน: บัญชีปลายทางปิดแล้วหรือชื่อบัญชีไม่ตรง', log:lg }; log(c, 'โอนเงินไม่สำเร็จ (ACCOUNT_INVALID)', 'system'); }
+    else { c.status = 'PAID'; c.payment = { ref, at:now.toISOString(), log:lg }; log(c, `โอนเงินสำเร็จ อ้างอิง ${ref} ออกหนังสือยืนยันแล้ว`, 'system'); }
+    save();
+  },
+};
+const curBO = () => getCase(UI.boId) || (() => { const f = FILTERS.find(x => x[0] === UI.boFilter); return S.cases.filter(c => f[2].includes(c.status))[0]; })();
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+  const fn = A[b.dataset.a]; if (!fn) return;
+  if (fn(b, e) === false) return;
+  render();
+});
+document.addEventListener('input', e => {
+  const el = e.target, val = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.dataset.w) {
+    UI.wiz.f[el.dataset.w] = val;
+    if (el.dataset.w === 'notDone') { render(); return; }
+    if (['repairIn', 'repairOut'].includes(el.dataset.w) && $('#est')) { const f = UI.wiz.f; $('#est').innerHTML = estBox(UI.wiz.claim.type, f.repairIn, f.repairOut, f.notDone); }
+  } else if (el.dataset.t) {
+    UI.t[el.dataset.t] = val;
+    if (el.dataset.t === 'adays' && $('#boEst')) {
+      const c = curBO(), amt = (Number(val) || 0) * RATES[c.type].rate, need = requiredStep(amt);
+      $('#boEst').innerHTML = `<span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span>`;
+    }
+  } else if (el.dataset.calc) {
+    UI.calc[el.dataset.calc] = val;
+    const r = RATES[UI.calc.type].rate, d = Math.max(0, Number(UI.calc.days) || 0);
+    $('#calcOut').innerHTML = `<span class="small" style="color:var(--sign-ink)">ยอดประมาณการ</span><span class="amt">${baht(d * r)}</span><span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน</span>`;
+  }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.type === 'file' && el.files && el.files[0]) {
+    if (el.dataset.doc) UI.wiz.docs[el.dataset.doc] = el.files[0].name;
+    if (el.dataset.cdoc) UI.t['doc_' + el.dataset.cdoc] = el.files[0].name;
+    render();
+  } else if (el.tagName === 'SELECT' && el.dataset.w) { UI.wiz.f[el.dataset.w] = el.value; }
+  else if (el.tagName === 'SELECT' && el.dataset.t) { UI.t[el.dataset.t] = el.value; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && UI.modal) { UI.modal = null; UI.err = ''; render(); } });
+
+render();
+</script>
