@@ -271,6 +271,8 @@ const baht = n => Number(n || 0).toLocaleString('th-TH') + ' บาท';
 const fmtD = iso => iso ? new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '–';
 const fmtDT = iso => new Date(iso).toLocaleString('th-TH', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const plusDays = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+const isFuture = d => !!d && d > todayISO();
 const days = (a, b) => (a && b) ? Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1 : 0;
 const maskAcct = a => a ? 'xxx-x-x' + String(a).slice(-4) : '';
 const claimOf = c => CLAIMS.find(x => x.claimNo === c.claimNo);
@@ -303,7 +305,7 @@ function seed() {
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.cases ? s : null; } catch (e) { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 let S = load() || seed();
-const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', notDone:false, bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
+const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
 let UI = { view:'claimant', page:'home', wiz:newWiz(), caseId:null, boId:null, boFilter:'todo', calc:{ type:'car', days:7 }, t:{}, err:'', modal:null, bankLog:{} };
 try { const v = localStorage.getItem(KEY + '-view'); if (v === 'bo' || v === 'claimant') UI.view = v; } catch (e) {}
 
@@ -455,10 +457,11 @@ function wStep1() {
   };
 }
 function estBox(type, a, b, notDone) {
+  const exp = !notDone && isFuture(b);
   const r = RATES[type].rate, d = notDone ? days(a, todayISO()) : days(a, b);
   if (!a || d <= 0) return `<span class="small" style="color:var(--sign-ink)">ยอดประมาณการ</span><span class="amt">–</span><span class="formula">กรอกวันที่รถเข้าซ่อมเพื่อดูยอด</span>`;
-  return `<span class="small" style="color:var(--sign-ink)">${notDone ? 'ยอดประมาณการถึงวันนี้' : 'ยอดที่ขอเรียกร้อง'}</span>
-    <span class="amt">${baht(d * r)}</span><span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน${notDone ? ' · ยอดจะนับต่อจนรถซ่อมเสร็จ' : ''}</span>
+  return `<span class="small" style="color:var(--sign-ink)">${notDone ? 'ยอดประมาณการถึงวันนี้' : exp ? 'ยอดประมาณการถึงวันที่อู่นัดรับรถ' : 'ยอดที่ขอเรียกร้อง'}</span>
+    <span class="amt">${baht(d * r)}</span><span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน${notDone ? ' · ยอดจะนับต่อจนรถซ่อมเสร็จ' : exp ? ' · ยอดจริงคิดตามวันที่รับรถคืนจริง' : ''}</span>
     ${d > 30 ? `<span class="small" style="color:var(--warn)">ซ่อมนานกว่า 30 วัน เจ้าหน้าที่อาจขอข้อมูลเหตุผลเพิ่ม</span>` : ''}`;
 }
 function wStep2() {
@@ -469,10 +472,10 @@ function wStep2() {
       <div class="flat"><div class="row between">${plateHTML(c.plate, c.province, true)}<span class="small"><b>${esc(RATES[c.type].label)}</b><br><span class="muted">อัตรา ${RATES[c.type].rate.toLocaleString('th-TH')} บาท/วัน</span></span></div></div>
       <div class="grid2">
         <div class="field"><label for="w-in">วันที่รถเข้าซ่อม</label><input class="input" type="date" id="w-in" data-w="repairIn" value="${esc(f.repairIn)}" min="${c.accident}" max="${todayISO()}"></div>
-        <div class="field"><label for="w-out">วันที่รับรถคืน</label><input class="input" type="date" id="w-out" data-w="repairOut" value="${esc(f.repairOut)}" ${f.notDone ? 'disabled' : ''} min="${esc(f.repairIn || c.accident)}" max="${todayISO()}"></div>
+        <div class="field"><label for="w-out">วันที่รับรถคืน</label><input class="input" type="date" id="w-out" data-w="repairOut" value="${esc(f.repairOut)}" min="${esc(f.repairIn || c.accident)}" max="${plusDays(120)}"><span class="hint">ยังซ่อมไม่เสร็จ? เลือกวันที่อู่นัดรับรถได้เลย</span></div>
       </div>
-      <label class="check"><input type="checkbox" data-w="notDone" ${f.notDone ? 'checked' : ''}><span>รถยังซ่อมไม่เสร็จ <span class="muted small">(ยื่นไว้ก่อนได้ แล้วส่งวันที่รับรถคืนภายหลัง)</span></span></label>
-      <div class="est" id="est" aria-live="polite">${estBox(c.type, f.repairIn, f.repairOut, f.notDone)}</div>
+      <div class="est" id="est" aria-live="polite">${estBox(c.type, f.repairIn, f.repairOut)}</div>
+      ${isFuture(f.repairOut) ? `<div class="alert info"><span class="ico">i</span><span>ยื่นไว้ก่อนได้เลย เมื่อรับรถคืนแล้วค่อยกลับมาแนบใบส่งมอบรถในหน้าติดตามคำร้อง</span></div>` : ''}
       <h3 style="margin-top:6px">บัญชีรับเงิน</h3>
       <div class="grid2">
         <div class="field"><label for="w-bank">ธนาคาร</label><select class="input" id="w-bank" data-w="bank"><option value="">เลือกธนาคาร</option>${BANKS.map(b => `<option ${b === f.bank ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
@@ -496,7 +499,7 @@ function wStep3() {
   const w = UI.wiz;
   return {
     head: `<h2>แนบเอกสาร</h2><p class="muted">ถ่ายรูปจากมือถือได้เลย รองรับไฟล์รูปภาพและ PDF</p>`,
-    main: `<div class="stack">${DOCS.map(d => docRow(d, w.docs[d.id], 'data-doc', d.id === 'repairOut' && w.f.notDone)).join('')}</div>
+    main: `<div class="stack">${DOCS.map(d => docRow(d, w.docs[d.id], 'data-doc', d.id === 'repairOut' && isFuture(w.f.repairOut))).join('')}</div>
       <button class="chipbtn" data-a="sampleAll" style="align-self:flex-start">ใช้ไฟล์ตัวอย่างทั้งหมด</button>`,
     next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
   };
@@ -511,11 +514,11 @@ function wStep4() {
         <dt>ผู้เรียกร้อง</dt><dd>${esc(c.owner)}</dd>
         <dt>เบอร์มือถือ</dt><dd class="num">${esc(f.phone)}</dd>
         <dt>รถเข้าซ่อม</dt><dd>${fmtD(f.repairIn)}</dd>
-        <dt>รับรถคืน</dt><dd>${f.notDone ? 'ยังซ่อมไม่เสร็จ' : fmtD(f.repairOut)}</dd>
+        <dt>รับรถคืน</dt><dd>${fmtD(f.repairOut)}${isFuture(f.repairOut) ? ' <span class="muted small">(วันที่อู่นัด)</span>' : ''}</dd>
         <dt>บัญชีรับเงิน</dt><dd>${esc(f.bank)} ${maskAcct(f.acct)}</dd>
         <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length} ไฟล์</dd>
       </dl>
-      <div class="est">${estBox(c.type, f.repairIn, f.repairOut, f.notDone)}</div>
+      <div class="est">${estBox(c.type, f.repairIn, f.repairOut)}</div>
       <label class="check"><input type="checkbox" data-w="certify" ${f.certify ? 'checked' : ''}><span>ข้าพเจ้ารับรองว่าข้อมูลและเอกสารทั้งหมดเป็นความจริง</span></label>`,
     next: `<button class="btn primary" data-a="submit">ยื่นคำร้อง</button>`,
   };
@@ -556,7 +559,7 @@ function caseView(c) {
     return `<li class="${cls}"><span class="dot">${cls === 'done' ? '✓' : i + 1}</span><div><div class="t">${s[0]}</div>${i === stage && stage < 5 ? `<div class="small muted">${esc(st.me)}</div>` : ''}</div></li>`;
   }).join('')}</ul>`;
   const amountCard = c.approvedAmount && ['OFFERED', 'ACCEPTED', 'PAYMENT_FAILED', 'PAID'].includes(c.status) ? '' : `
-    <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut, !c.repairOut)}</div></section>`;
+    <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut || c.expectedOut, !c.repairOut && !c.expectedOut)}</div></section>`;
   return `
   <div class="row between"><button class="linkbtn" data-a="home">← หน้าแรก</button><span class="small muted mono">${esc(c.claimNo)}</span></div>
   <section class="card">
@@ -588,7 +591,8 @@ function claimantAction(c) {
   if (c.status === 'WAITING_REPAIR') {
     return `<section class="card"><h3>ส่งวันที่รับรถคืน</h3>
       ${UI.err ? `<div class="alert bad"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
-      <div class="field"><label for="c-out">วันที่รับรถคืน</label><input class="input" type="date" id="c-out" data-t="out" value="${esc(t.out || '')}" min="${c.repairIn}" max="${todayISO()}"></div>
+      ${c.expectedOut ? `<p class="small muted">อู่นัดรับรถวันที่ ${fmtD(c.expectedOut)}</p>` : ''}
+      <div class="field"><label for="c-out">วันที่รับรถคืนจริง</label><input class="input" type="date" id="c-out" data-t="out" value="${esc(t.out || '')}" min="${c.repairIn}" max="${todayISO()}"><span class="hint">กรอกหลังรับรถแล้ว จึงเลือกได้ถึงวันนี้</span></div>
       ${docRow(DOCS[4], t.doc_repairOut, 'data-cdoc')}
       <button class="btn primary" data-a="sendRepairOut">ส่งข้อมูล</button></section>`;
   }
@@ -819,16 +823,14 @@ function wizValidate() {
     if (!f.repairIn) return 'กรอกวันที่รถเข้าซ่อม';
     if (f.repairIn < w.claim.accident) return 'วันที่รถเข้าซ่อมต้องไม่ก่อนวันเกิดเหตุ';
     if (f.repairIn > todayISO()) return 'วันที่รถเข้าซ่อมต้องไม่เกินวันนี้';
-    if (!f.notDone) {
-      if (!f.repairOut) return 'กรอกวันที่รับรถคืน หรือเลือก "รถยังซ่อมไม่เสร็จ"';
-      if (f.repairOut < f.repairIn) return 'วันที่รับรถคืนต้องไม่ก่อนวันที่รถเข้าซ่อม';
-      if (f.repairOut > todayISO()) return 'วันที่รับรถคืนต้องไม่เกินวันนี้';
-    }
+    if (!f.repairOut) return 'กรอกวันที่รับรถคืน หรือวันที่อู่นัดรับรถ';
+    if (f.repairOut < f.repairIn) return 'วันที่รับรถคืนต้องไม่ก่อนวันที่รถเข้าซ่อม';
+    if (f.repairOut > plusDays(120)) return 'วันที่อู่นัดรับรถต้องไม่เกิน 120 วันจากวันนี้';
     if (!f.bank) return 'เลือกธนาคาร';
     if (!/^\d{10,12}$/.test(f.acct)) return 'เลขบัญชีต้องเป็นตัวเลข 10–12 หลัก';
   }
   if (w.step === 3) {
-    const miss = DOCS.filter(d => !(d.id === 'repairOut' && f.notDone) && !w.docs[d.id]);
+    const miss = DOCS.filter(d => !(d.id === 'repairOut' && isFuture(f.repairOut)) && !w.docs[d.id]);
     if (miss.length) return 'ยังขาดเอกสาร: ' + miss.map(d => d.label).join(', ');
   }
   return '';
@@ -849,9 +851,10 @@ function submit() {
   if (!f.certify) { w.err = 'กรุณารับรองความถูกต้องของข้อมูล'; return; }
   S.seq += 1;
   const id = 'LU-2569-' + String(S.seq).padStart(4, '0');
-  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:f.notDone ? '' : f.repairOut, bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
-    docs:{ ...w.docs }, status: f.notDone ? 'WAITING_REPAIR' : 'SUBMITTED', approvals:[], appealCount:0, history:[] };
-  log(k, f.notDone ? 'ยื่นคำร้อง (รถยังซ่อมไม่เสร็จ)' : 'ยื่นคำร้อง', 'claimant');
+  const pending = isFuture(f.repairOut);
+  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:pending ? '' : f.repairOut, expectedOut:pending ? f.repairOut : '', bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
+    docs:{ ...w.docs }, status: pending ? 'WAITING_REPAIR' : 'SUBMITTED', approvals:[], appealCount:0, history:[] };
+  log(k, pending ? `ยื่นคำร้อง (รถยังซ่อมไม่เสร็จ อู่นัดรับรถ ${fmtD(f.repairOut)})` : 'ยื่นคำร้อง', 'claimant');
   S.cases.unshift(k); save();
   UI.caseId = id; UI.page = 'done'; UI.wiz = newWiz();
 }
@@ -869,7 +872,7 @@ const A = {
   wizNext: () => { const e = wizValidate(); UI.wiz.err = e; if (!e) UI.wiz.step += 1; },
   sendOtp: () => { const p = UI.wiz.f.phone; if (!/^0\d{9}$/.test(p)) { UI.wiz.err = 'กรอกเบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0'; return; } UI.wiz.err = ''; UI.wiz.otpSent = true; },
   sampleDoc: b => { if (b.dataset.doc) UI.wiz.docs[b.dataset.doc] = sampleName(b.dataset.doc); else UI.t['doc_' + b.dataset.cdoc] = sampleName(b.dataset.cdoc); },
-  sampleAll: () => DOCS.forEach(d => { if (!(d.id === 'repairOut' && UI.wiz.f.notDone)) UI.wiz.docs[d.id] = sampleName(d.id); }),
+  sampleAll: () => DOCS.forEach(d => { if (!(d.id === 'repairOut' && isFuture(UI.wiz.f.repairOut))) UI.wiz.docs[d.id] = sampleName(d.id); }),
   submit: () => submit(),
   copy: b => { const v = b.dataset.v; try { navigator.clipboard.writeText(v).then(() => { b.textContent = 'คัดลอกแล้ว'; }, () => {}); } catch (e) {} return false; },
   openCase: b => { UI.view = 'claimant'; UI.caseId = b.dataset.id; UI.page = 'case'; UI.err = ''; UI.t = {}; UI.wiz.err = ''; },
@@ -962,8 +965,7 @@ document.addEventListener('input', e => {
   const el = e.target, val = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.w) {
     UI.wiz.f[el.dataset.w] = val;
-    if (el.dataset.w === 'notDone') { render(); return; }
-    if (['repairIn', 'repairOut'].includes(el.dataset.w) && $('#est')) { const f = UI.wiz.f; $('#est').innerHTML = estBox(UI.wiz.claim.type, f.repairIn, f.repairOut, f.notDone); }
+    if (['repairIn', 'repairOut'].includes(el.dataset.w) && $('#est')) { const f = UI.wiz.f; $('#est').innerHTML = estBox(UI.wiz.claim.type, f.repairIn, f.repairOut); }
   } else if (el.dataset.t) {
     UI.t[el.dataset.t] = val;
     if (el.dataset.t === 'adays' && $('#boEst')) {
@@ -982,6 +984,7 @@ document.addEventListener('change', e => {
     if (el.dataset.doc) UI.wiz.docs[el.dataset.doc] = el.files[0].name;
     if (el.dataset.cdoc) UI.t['doc_' + el.dataset.cdoc] = el.files[0].name;
     render();
+  } else if (el.dataset.w === 'repairOut' || el.dataset.w === 'repairIn') { UI.wiz.f[el.dataset.w] = el.value; render();
   } else if (el.tagName === 'SELECT' && el.dataset.w) { UI.wiz.f[el.dataset.w] = el.value; }
   else if (el.tagName === 'SELECT' && el.dataset.t) { UI.t[el.dataset.t] = el.value; }
 });
