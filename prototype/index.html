@@ -10,6 +10,7 @@
   --sign:#F2B233; --sign-soft:#FDF1D6; --sign-ink:#5A3D00;
   --ok:#1E7B45; --ok-soft:#DDF2E4; --warn:#9A5B00; --warn-soft:#FBEBCF; --bad:#B3261E; --bad-soft:#F9E0DE; --info:#2456A6; --info-soft:#E0E9F8;
   --plate-bg:#FFFFFF; --plate-ink:#111111;
+  --s1:#2a78d6; --s2:#eb6834; --o1:#86b6ef; --o2:#2a78d6; --o3:#104281; --st-good:#0ca30c; --st-warn:#fab219; --st-crit:#d03b3b;
   --shadow:0 1px 2px rgba(22,38,42,.06),0 4px 16px rgba(22,38,42,.06);
   --f-display:"Anuphan","IBM Plex Sans Thai",system-ui,sans-serif;
   --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -22,6 +23,7 @@
   --sign:#F2B233; --sign-soft:#3A2E12; --sign-ink:#F7D489;
   --ok:#5BD08A; --ok-soft:#173826; --warn:#F0B354; --warn-soft:#3A2C12; --bad:#F2867E; --bad-soft:#3E1D1B; --info:#86AEF0; --info-soft:#1B2A45;
   --plate-bg:#F4F4F0; --plate-ink:#111111;
+  --s1:#3987e5; --s2:#d95926; --o1:#184f95; --o2:#3987e5; --o3:#9ec5f4;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0F1A1C; --surface:#172427; --sunk:#1E2E31; --line:#2C3F43;
@@ -29,6 +31,7 @@
   --sign:#F2B233; --sign-soft:#3A2E12; --sign-ink:#F7D489;
   --ok:#5BD08A; --ok-soft:#173826; --warn:#F0B354; --warn-soft:#3A2C12; --bad:#F2867E; --bad-soft:#3E1D1B; --info:#86AEF0; --info-soft:#1B2A45;
   --plate-bg:#F4F4F0; --plate-ink:#111111;
+  --s1:#3987e5; --s2:#d95926; --o1:#184f95; --o2:#3987e5; --o3:#9ec5f4;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -220,16 +223,59 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
 .needs div{background:var(--sunk);border-radius:12px;padding:12px;font-size:.88rem}
 .needs b{display:block;font-size:.92rem}
 @media (max-width:440px){.needs{grid-template-columns:1fr}}
+/* report */
+.rtop{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-bottom:16px}
+.rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rgrid > *{min-width:0}
+.span2{grid-column:1 / -1}
+@media (max-width:860px){.rgrid{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.kpi .l{font-size:.82rem;color:var(--muted)}
+.kpi .v{font-family:var(--f-display);font-size:1.55rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .d{font-size:.78rem;color:var(--muted)}
+.sec-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.hb{display:grid;grid-template-columns:minmax(96px,150px) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:.86rem;padding-block:5px}
+.track{display:flex;gap:2px;height:18px;min-width:0}
+.sgm{height:100%;min-width:3px;cursor:default}
+.track .sgm:last-child{border-radius:0 4px 4px 0}
+.hb .n{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;min-width:2.5em;text-align:right}
+.vb{position:relative;height:190px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:end;padding-left:44px;border-bottom:1px solid var(--line)}
+.vb .gl{position:absolute;left:44px;right:0;border-top:1px dashed var(--line)}
+.vb .gl span{position:absolute;left:-44px;top:-.6em;width:40px;text-align:right;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.vb .col{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;z-index:1}
+.vb .bar{width:56%;max-width:64px;background:var(--s1);border-radius:4px 4px 0 0;min-height:2px}
+.vb .val{font-size:.78rem;font-weight:600;font-variant-numeric:tabular-nums}
+.vx{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding-left:44px;font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px}
+.rti{position:relative;width:100px;height:10px;background:var(--sunk);border-radius:5px;flex:none}
+.rti b{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0}
+.rti i{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.sdot{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.sdot::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.alist{display:flex;flex-direction:column;gap:8px}
+.arow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.arow .ai{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;color:#fff;background:var(--c)}
+.arow .ac{font-family:var(--f-display);font-weight:700;font-size:1.2rem;font-variant-numeric:tabular-nums}
+.idchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 8px;font-family:var(--f-mono);font-size:.72rem;cursor:pointer;color:var(--ink)}
+.idchip:hover{border-color:var(--accent)}
+.cmp td.best{font-weight:700}
+.insight{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:.9rem}
+.tblwrap{overflow-x:auto}
+#tip{position:fixed;z-index:70;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.8rem;padding:6px 10px;border-radius:8px;max-width:260px;box-shadow:var(--shadow)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <div id="app"></div>
 <div id="modal"></div>
+<div id="tip" hidden></div>
 
 <script>
 'use strict';
 /* =================== ข้อมูลจำลอง & การตั้งค่า =================== */
-const KEY = 'lu-proto-v1';
+const KEY = 'lu-proto-v2';
 const COMPANY = 'บริษัท ประกันภัยตัวอย่าง จำกัด (มหาชน)';
 const OTP = '123456';
 const RATES = {
@@ -252,15 +298,48 @@ const DOCS = [
   { id: 'repairIn',  label: 'ใบรับรถเข้าซ่อม',            hint: 'ออกโดยอู่หรือศูนย์บริการ' },
   { id: 'repairOut', label: 'ใบส่งมอบรถ / ใบเสร็จค่าซ่อม', hint: 'ส่งภายหลังได้ถ้ารถยังซ่อมไม่เสร็จ' },
 ];
+// อู่: dealer = อู่ห้าง/ศูนย์บริการของผู้ผลิต, general = อู่นอก/อู่อิสระ
+const GTYPE = {
+  dealer:  { label:'อู่ห้าง', long:'ศูนย์บริการ (Dealer Garage)' },
+  general: { label:'อู่นอก',  long:'อู่อิสระ (General Garage)' },
+};
+const GARAGES = [
+  { id:'d1', name:'ศูนย์บริการโตโยต้า สาขารัชดา',   type:'dealer',  slow:0.95 },
+  { id:'d2', name:'ศูนย์บริการฮอนด้า สาขาลาดพร้าว', type:'dealer',  slow:1.0 },
+  { id:'d3', name:'ศูนย์บริการอีซูซุ สาขารังสิต',    type:'dealer',  slow:1.0 },
+  { id:'d4', name:'ศูนย์บริการมาสด้า สาขาพระราม 9', type:'dealer',  slow:1.1 },
+  { id:'d5', name:'ศูนย์บริการนิสสัน สาขาเชียงใหม่', type:'dealer',  slow:1.0 },
+  { id:'g1', name:'อู่ช่างเอก ออโต้เซอร์วิส',        type:'general', slow:1.05 },
+  { id:'g2', name:'อู่สมศักดิ์การช่าง',               type:'general', slow:1.25 },
+  { id:'g3', name:'อู่ประเสริฐยนต์',                  type:'general', slow:1.4 },
+  { id:'g4', name:'อู่เจริญมอเตอร์',                  type:'general', slow:1.3 },
+  { id:'g5', name:'อู่ทวีโชคการช่าง',                 type:'general', slow:1.85 },
+];
+// ระดับความเสียหายจากพนักงานสำรวจภัย + จำนวนวันซ่อมมาตรฐาน (ใช้เทียบทุกอู่ด้วยเกณฑ์เดียวกัน)
+const SEV = {
+  light:  { label:'เล็กน้อย', std:5,  cost:12000 },
+  medium: { label:'ปานกลาง', std:10, cost:35000 },
+  heavy:  { label:'หนัก',     std:18, cost:90000 },
+};
+const REASONS = {
+  queue:   'รถรอคิวเข้าซ่อม ไม่ได้อยู่ระหว่างซ่อมจริง',
+  parts:   'อู่รออะไหล่นานเกินควร',
+  late:    'ผู้เรียกร้องรับรถคืนช้ากว่าวันที่ซ่อมเสร็จ',
+  over:    'จำนวนวันเกินมาตรฐานของระดับความเสียหาย',
+  other:   'อื่น ๆ',
+};
+// SLA ฝั่งบริษัท (วัน) ต่อสถานะ
+const SLA = { SUBMITTED:2, UNDER_REVIEW:2, PENDING_APPROVAL:2, ACCEPTED:2 };
+
 // ฐานข้อมูลเคลมจำลอง (แทนระบบเคลมหลักของบริษัท) — คู่กรณีฝ่ายถูกเท่านั้นที่ยื่นได้
 const CLAIMS = [
-  { claimNo:'CLM-69-004521', plate:'1กข 1234', province:'กรุงเทพมหานคร', owner:'สมชาย ใจดี', type:'car', model:'Toyota Yaris Ativ สีขาว', accident:'2026-09-20', place:'ถ.รัชดาภิเษก แยกห้วยขวาง', insuredPlate:'7กษ 8899', role:'victim' },
-  { claimNo:'CLM-69-004588', plate:'30-4567', province:'นนทบุรี', owner:'วิภา รักษ์ดี', type:'van', model:'Toyota Commuter สีเงิน', accident:'2026-09-02', place:'ถ.แจ้งวัฒนะ หน้าห้างเซ็นทรัล', insuredPlate:'4ขจ 2210', role:'victim' },
-  { claimNo:'CLM-69-003910', plate:'2กง 4455', province:'กรุงเทพมหานคร', owner:'ประยุทธ มั่นคง', type:'car', model:'Honda City สีดำ', accident:'2026-08-30', place:'ซ.ลาดพร้าว 71', insuredPlate:'5กม 1020', role:'atfault' },
-  { claimNo:'CLM-69-004102', plate:'6กท 9001', province:'ปทุมธานี', owner:'มานพ ศรีสุข', type:'car', model:'Isuzu D-Max สีเทา', accident:'2026-09-15', place:'ถ.รังสิต-นครนายก', insuredPlate:'1ขข 5555', role:'victim' },
-  { claimNo:'CLM-69-003777', plate:'70-1188', province:'สมุทรปราการ', owner:'ศิริพร ขนส่ง', type:'truck', model:'Hino 6 ล้อ', accident:'2026-08-18', place:'ถ.บางนา-ตราด กม.12', insuredPlate:'3กฉ 7788', role:'victim' },
-  { claimNo:'CLM-69-003650', plate:'9กญ 3030', province:'กรุงเทพมหานคร', owner:'ธนา วงศ์ใหญ่', type:'car', model:'Mazda 2 สีแดง', accident:'2026-08-25', place:'ถ.พระราม 9', insuredPlate:'8กศ 4411', role:'victim' },
-  { claimNo:'CLM-69-003201', plate:'4กพ 7777', province:'เชียงใหม่', owner:'กัญญา ดวงดี', type:'car', model:'Nissan Almera สีฟ้า', accident:'2026-08-05', place:'ถ.ซุปเปอร์ไฮเวย์ เชียงใหม่', insuredPlate:'2กน 3322', role:'victim' },
+  { sev:'medium', claimNo:'CLM-69-004521', plate:'1กข 1234', province:'กรุงเทพมหานคร', owner:'สมชาย ใจดี', type:'car', model:'Toyota Yaris Ativ สีขาว', accident:'2026-09-20', place:'ถ.รัชดาภิเษก แยกห้วยขวาง', insuredPlate:'7กษ 8899', role:'victim' },
+  { sev:'heavy', claimNo:'CLM-69-004588', plate:'30-4567', province:'นนทบุรี', owner:'วิภา รักษ์ดี', type:'van', model:'Toyota Commuter สีเงิน', accident:'2026-09-02', place:'ถ.แจ้งวัฒนะ หน้าห้างเซ็นทรัล', insuredPlate:'4ขจ 2210', role:'victim' },
+  { sev:'light', claimNo:'CLM-69-003910', plate:'2กง 4455', province:'กรุงเทพมหานคร', owner:'ประยุทธ มั่นคง', type:'car', model:'Honda City สีดำ', accident:'2026-08-30', place:'ซ.ลาดพร้าว 71', insuredPlate:'5กม 1020', role:'atfault' },
+  { sev:'medium', claimNo:'CLM-69-004102', plate:'6กท 9001', province:'ปทุมธานี', owner:'มานพ ศรีสุข', type:'car', model:'Isuzu D-Max สีเทา', accident:'2026-09-15', place:'ถ.รังสิต-นครนายก', insuredPlate:'1ขข 5555', role:'victim' },
+  { sev:'heavy', claimNo:'CLM-69-003777', plate:'70-1188', province:'สมุทรปราการ', owner:'ศิริพร ขนส่ง', type:'truck', model:'Hino 6 ล้อ', accident:'2026-08-18', place:'ถ.บางนา-ตราด กม.12', insuredPlate:'3กฉ 7788', role:'victim' },
+  { sev:'medium', claimNo:'CLM-69-003650', plate:'9กญ 3030', province:'กรุงเทพมหานคร', owner:'ธนา วงศ์ใหญ่', type:'car', model:'Mazda 2 สีแดง', accident:'2026-08-25', place:'ถ.พระราม 9', insuredPlate:'8กศ 4411', role:'victim' },
+  { sev:'light', claimNo:'CLM-69-003201', plate:'4กพ 7777', province:'เชียงใหม่', owner:'กัญญา ดวงดี', type:'car', model:'Nissan Almera สีฟ้า', accident:'2026-08-05', place:'ถ.ซุปเปอร์ไฮเวย์ เชียงใหม่', insuredPlate:'2กน 3322', role:'victim' },
 ];
 
 /* =================== utils =================== */
@@ -302,16 +381,101 @@ function seed() {
     ],
   };
 }
+function repairCostOf(sev, type, r) { return Math.round(SEV[sev].cost * (type === 'dealer' ? 1.5 : 1) * (0.85 + (r ?? 0.5) * 0.3) / 100) * 100; }
+function seedAll() {
+  const base = seed();
+  const extra = {
+    'LU-2569-0004': { garageId:'d3', expectedOut:'2026-09-28', statusAt:'2026-10-06T09:12:00' },
+    'LU-2569-0003': { garageId:'g5', expectedOut:'2026-09-01', statusAt:'2026-10-05T14:20:00', proposedAt:'2026-10-02T16:05:00' },
+    'LU-2569-0002': { garageId:'g4', expectedOut:'2026-09-08', statusAt:'2026-10-04T09:40:00', proposedAt:'2026-10-02T15:00:00', reasonCode:'queue' },
+    'LU-2569-0001': { garageId:'d5', expectedOut:'2026-08-13', statusAt:'2026-08-24T10:15:00', proposedAt:'2026-08-21T14:00:00' },
+  };
+  base.cases.forEach(c => { Object.assign(c, extra[c.id]); c.repairCost = repairCostOf(claimOf(c).sev, GARAGES.find(g => g.id === c.garageId).type); });
+  const gen = genHistory();
+  const all = gen.concat(base.cases).sort((a, b) => Date.parse(a.history[0].at) - Date.parse(b.history[0].at));
+  all.forEach((c, i) => { c.id = 'LU-2569-' + String(i + 1).padStart(4, '0'); });
+  return { seq: all.length, cases: all.reverse() };
+}
+// สร้างคำร้องย้อนหลังประมาณ 100 วัน (สุ่มแบบกำหนด seed ได้ผลเหมือนเดิมทุกครั้ง)
+function genHistory() {
+  let z = 20261007; const R = () => (z = (z * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  const pick = a => a[Math.floor(R() * a.length)], btw = (a, b) => a + R() * (b - a), D = 864e5, now = Date.now();
+  const FN = ['สมพร','อรุณี','ชัยวัฒน์','นภา','วีระ','สุดารัตน์','ประเสริฐ','จันทร์เพ็ญ','ณัฐพล','พิมพ์ชนก','อนันต์','รัชนี','ธีรพงษ์','กมลวรรณ','สุรชัย','ปิยะดา','บุญชัย','วราภรณ์','เกียรติศักดิ์','ศศิธร'];
+  const LN = ['แสงทอง','บุญมา','ศรีวงศ์','ทองดี','จันทร์หอม','พึ่งบุญ','รุ่งเรือง','สุขเจริญ','วงศ์สวัสดิ์','มีสุข','ใจกว้าง','พรหมมา'];
+  const PROV = ['กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','ชลบุรี','นครปฐม'];
+  const CONS = 'กขคงจฉชฌญฎฐฒณดตถทธนบปผพฟภมยรลวศษสหฬอ';
+  const MODELS = { car:['Toyota Vios','Honda City','Mazda 2','Isuzu D-Max','Toyota Hilux Revo','Nissan Almera','Honda HR-V'], van:['Toyota Commuter','Hyundai H-1'], truck:['Hino 6 ล้อ','Isuzu FRR 6 ล้อ'] };
+  const BANKS2 = ['กสิกรไทย','กรุงเทพ','ไทยพาณิชย์','กรุงไทย','กรุงศรีอยุธยา'];
+  const iso = t => new Date(t).toISOString(), day = t => new Date(t).toISOString().slice(0, 10);
+  const out = []; const N = 58; let dupAcct = null;
+  for (let i = 0; i < N; i++) {
+    z = (20261007 + i * 7919) >>> 0; R(); R();   // RNG ต่อเคส: ข้อมูลเคลมเหมือนเดิมทุกครั้งที่เปิด
+    const ago = 1 + i * 1.7 + R() * 1.2;               // วันที่ยื่นย้อนหลัง
+    const t0 = now - ago * D;
+    const type = R() < 0.72 ? 'car' : R() < 0.5 ? 'van' : 'truck';
+    const sev = (r => r < 0.35 ? 'light' : r < 0.8 ? 'medium' : 'heavy')(R());
+    const g = R() < 0.45 ? pick(GARAGES.filter(x => x.type === 'dealer')) : pick(GARAGES.filter(x => x.type === 'general'));
+    const std = SEV[sev].std;
+    const factor = g.type === 'dealer' ? btw(0.75, 1.2) * g.slow : btw(0.9, 1.35) * g.slow;
+    const rdays = Math.max(2, Math.round(std * factor));
+    const outT = t0 - Math.floor(btw(1, 4)) * D, inT = outT - (rdays - 1) * D, accT = inT - Math.floor(btw(0, 3)) * D;
+    const expOut = day(inT + (Math.round(std * (g.type === 'dealer' ? 1 : 1.15)) - 1) * D);
+    const owner = pick(FN) + ' ' + pick(LN), prov = pick(PROV);
+    const plate = (type === 'car' ? Math.ceil(R() * 9) + CONS[Math.floor(R() * CONS.length)] + CONS[Math.floor(R() * CONS.length)] : (type === 'van' ? '30-' : '70-')) + ' ' + String(1000 + Math.floor(R() * 8999));
+    const claimNo = 'CLM-69-' + String(2000 + i * 37).padStart(6, '0');
+    if (!CLAIMS.some(x => x.claimNo === claimNo)) CLAIMS.push({ sev, claimNo, plate:plate.replace('- ', '-'), province:prov, owner, type, model:pick(MODELS[type]), accident:day(accT), place:'ข้อมูลจำลอง', insuredPlate:Math.ceil(R() * 9) + 'กข ' + (1000 + Math.floor(R() * 8999)), role:'victim' });
+    const rate = RATES[type].rate;
+    let aDays = rdays, reasonCode;
+    if (rdays > std * 1.4 && R() < 0.75) { aDays = Math.round(std * 1.3); reasonCode = R() < 0.6 ? 'parts' : 'over'; }
+    else if (R() < 0.12) { aDays = rdays - Math.ceil(R() * 3); reasonCode = R() < 0.5 ? 'queue' : 'late'; }
+    let acct = String(Math.floor(1e9 + R() * 8.9e9));
+    if (i === 6) dupAcct = acct; if (i === 23 && dupAcct) acct = dupAcct;   // บัญชีซ้ำ 1 คู่ไว้ให้รายงานตรวจพบ
+    const c = { claimNo, phone:'08' + String(Math.floor(1e7 + R() * 8.9e7)), type, repairIn:day(inT), repairOut:day(outT), expectedOut:expOut,
+      bank:{ name:pick(BANKS2), acct }, holder:owner, garageId:g.id, repairCost:repairCostOf(sev, g.type, R()),
+      docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf' }, approvals:[], appealCount:0, history:[] };
+    const H = (t, text, by) => c.history.push({ at:iso(t), text, by });
+    const set = (st, t) => { c.status = st; c.statusAt = iso(t); };
+    H(t0, 'ยื่นคำร้อง', 'claimant'); set('SUBMITTED', t0);
+    let t = t0 + btw(0.3, 2.6) * D;
+    if (t > now) { if (R() < 0.3) { c.needInfo = { docs:['bankbook'], note:'รูปหน้าสมุดบัญชีไม่ชัด' }; set('NEED_INFO', t0 + 0.2 * D); H(t0 + 0.2 * D, 'ขอเอกสารเพิ่ม: หน้าสมุดบัญชีธนาคาร', 'company'); } out.push(c); continue; }
+    H(t, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); set('UNDER_REVIEW', t);
+    t += btw(0.2, 2.2) * D; if (t > now) { out.push(c); continue; }
+    c.approvedDays = aDays; c.approvedAmount = aDays * rate; c.proposedAt = iso(t);
+    if (reasonCode) { c.reasonCode = reasonCode; c.adjustReason = REASONS[reasonCode]; }
+    const need = requiredStep(c.approvedAmount);
+    H(t, `เสนอยอด ${aDays} วัน × ${rate.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${need})`, 'company'); set('PENDING_APPROVAL', t);
+    let stop = false;
+    for (let st = 1; st <= need; st++) {
+      t += btw(0.1, st === 3 ? 3.2 : st === 2 ? 1.8 : 1.1) * D;
+      if (t > now) { stop = true; break; }
+      const tier = TIERS[st - 1]; c.approvals.push({ step:st, who:tier.who, at:iso(t) });
+      H(t, `Step ${st} อนุมัติ (${tier.who})${st === need ? ' แจ้งผลพิจารณาแล้ว' : ''}`, 'company'); set(st === need ? 'OFFERED' : 'PENDING_APPROVAL', t);
+    }
+    if (stop) { out.push(c); continue; }
+    t += btw(0.2, 3) * D; if (t > now) { out.push(c); continue; }
+    c.signedAt = iso(t); H(t, `ลงนามตอบรับผลพิจารณา ${baht(c.approvedAmount)} ด้วย OTP`, 'claimant'); set('ACCEPTED', t);
+    t += btw(0.1, 1.4) * D; if (t > now) { out.push(c); continue; }
+    if (i === 30) { c.payment = { error:'ธนาคารปฏิเสธการโอน: บัญชีปลายทางปิดแล้วหรือชื่อบัญชีไม่ตรง' }; H(t, 'โอนเงินไม่สำเร็จ (ACCOUNT_INVALID)', 'system'); set('PAYMENT_FAILED', t); out.push(c); continue; }
+    const ref = 'BNK' + iso(t).replace(/\D/g, '').slice(2, 14);
+    c.payment = { ref, at:iso(t) }; H(t, `โอนเงินสำเร็จ อ้างอิง ${ref} ออกหนังสือยืนยันแล้ว`, 'system'); set('PAID', t);
+    out.push(c);
+  }
+  return out;
+}
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.cases ? s : null; } catch (e) { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-let S = load() || seed();
-const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
-let UI = { view:'claimant', page:'home', wiz:newWiz(), caseId:null, boId:null, boFilter:'todo', calc:{ type:'car', days:7 }, t:{}, err:'', modal:null, bankLog:{} };
+genHistory();   // ลงทะเบียนข้อมูลเคลมจำลองย้อนหลังทุกครั้งที่เปิดหน้า
+let S = load() || seedAll();
+const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', garage:'', garageName:'', garageType:'', bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
+let UI = { boTab:'queue', rp:'90', gsort:'score', view:'claimant', page:'home', wiz:newWiz(), caseId:null, boId:null, boFilter:'todo', calc:{ type:'car', days:7 }, t:{}, err:'', modal:null, bankLog:{} };
 try { const v = localStorage.getItem(KEY + '-view'); if (v === 'bo' || v === 'claimant') UI.view = v; } catch (e) {}
 
 const getCase = id => S.cases.find(c => c.id === id);
 const reqDays = c => c.repairOut ? days(c.repairIn, c.repairOut) : days(c.repairIn, todayISO());
 const reqAmount = c => reqDays(c) * RATES[c.type].rate;
+const garageOf = c => c.garageId ? GARAGES.find(g => g.id === c.garageId) : { id:'x:' + (c.garageName || ''), name:c.garageName || 'ไม่ระบุ', type:c.garageType || 'general' };
+const gBadge = g => `<span class="pill ${g.type === 'dealer' ? 'info' : 'sign'}">${GTYPE[g.type].label}</span>`;
+const setStatus = (c, st) => { c.status = st; c.statusAt = new Date().toISOString(); };
 const log = (c, text, by) => c.history.push({ at: new Date().toISOString(), text, by });
 
 /* =================== status vocab =================== */
@@ -470,6 +634,14 @@ function wStep2() {
     head: `<h2>ข้อมูลการซ่อมและบัญชีรับเงิน</h2>`,
     main: `
       <div class="flat"><div class="row between">${plateHTML(c.plate, c.province, true)}<span class="small"><b>${esc(RATES[c.type].label)}</b><br><span class="muted">อัตรา ${RATES[c.type].rate.toLocaleString('th-TH')} บาท/วัน</span></span></div></div>
+      <div class="field"><label for="w-garage">อู่ที่ซ่อมรถ</label>
+        <select class="input" id="w-garage" data-w="garage"><option value="">เลือกอู่</option>
+          ${['dealer', 'general'].map(tp => `<optgroup label="${GTYPE[tp].long}">${GARAGES.filter(g => g.type === tp).map(g => `<option value="${g.id}" ${f.garage === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</optgroup>`).join('')}
+          <option value="other" ${f.garage === 'other' ? 'selected' : ''}>อู่อื่น ไม่อยู่ในรายการ</option></select></div>
+      ${f.garage === 'other' ? `<div class="grid2">
+        <div class="field"><label for="w-gname">ชื่ออู่</label><input class="input" id="w-gname" data-w="garageName" value="${esc(f.garageName)}" placeholder="เช่น อู่ช่างแดง"></div>
+        <div class="field"><label for="w-gtype">ประเภทอู่</label><select class="input" id="w-gtype" data-w="garageType"><option value="">เลือกประเภท</option>${Object.entries(GTYPE).map(([k, v]) => `<option value="${k}" ${f.garageType === k ? 'selected' : ''}>${v.long}</option>`).join('')}</select></div>
+      </div>` : ''}
       <div class="grid2">
         <div class="field"><label for="w-in">วันที่รถเข้าซ่อม</label><input class="input" type="date" id="w-in" data-w="repairIn" value="${esc(f.repairIn)}" min="${c.accident}" max="${todayISO()}"></div>
         <div class="field"><label for="w-out">วันที่รับรถคืน</label><input class="input" type="date" id="w-out" data-w="repairOut" value="${esc(f.repairOut)}" min="${esc(f.repairIn || c.accident)}" max="${plusDays(120)}"><span class="hint">ยังซ่อมไม่เสร็จ? เลือกวันที่อู่นัดรับรถได้เลย</span></div>
@@ -513,6 +685,7 @@ function wStep4() {
       <dl class="kv">
         <dt>ผู้เรียกร้อง</dt><dd>${esc(c.owner)}</dd>
         <dt>เบอร์มือถือ</dt><dd class="num">${esc(f.phone)}</dd>
+        <dt>อู่</dt><dd>${f.garage === 'other' ? esc(f.garageName) + ' (' + GTYPE[f.garageType].label + ')' : esc(GARAGES.find(g => g.id === f.garage).name)}</dd>
         <dt>รถเข้าซ่อม</dt><dd>${fmtD(f.repairIn)}</dd>
         <dt>รับรถคืน</dt><dd>${fmtD(f.repairOut)}${isFuture(f.repairOut) ? ' <span class="muted small">(วันที่อู่นัด)</span>' : ''}</dd>
         <dt>บัญชีรับเงิน</dt><dd>${esc(f.bank)} ${maskAcct(f.acct)}</dd>
@@ -646,7 +819,11 @@ function renderBO() {
   const cur = getCase(UI.boId) || list[0];
   const counts = FILTERS.map(x => S.cases.filter(c => x[2].includes(c.status)).length);
   const totalPaid = S.cases.filter(c => c.status === 'PAID').reduce((s, c) => s + c.approvedAmount, 0);
-  return `<main class="wrap-wide">
+  const tabs = `<div class="seg" role="group" aria-label="หน้าหลังบ้าน" style="align-self:flex-start;margin-bottom:14px">
+      <button data-a="boTab" data-v="queue" aria-pressed="${UI.boTab !== 'report'}">คิวงาน</button>
+      <button data-a="boTab" data-v="report" aria-pressed="${UI.boTab === 'report'}">รายงานผู้จัดการ</button></div>`;
+  if (UI.boTab === 'report') return `<main class="wrap-wide">${tabs}${renderReport()}</main>`;
+  return `<main class="wrap-wide">${tabs}
     <div class="row between" style="margin-bottom:14px">
       <div><h2>คำร้องค่าขาดประโยชน์</h2><p class="small muted">${S.cases.length} คำร้อง · จ่ายแล้วรวม ${baht(totalPaid)}</p></div>
       <details class="card" style="padding:12px 16px;gap:10px;max-width:100%"><summary>อัตราและอำนาจอนุมัติ</summary>
@@ -684,6 +861,8 @@ function boDetail(c) {
         <dt>ประเภท</dt><dd>${esc(RATES[c.type].label)}</dd>
         <dt>เกิดเหตุ</dt><dd>${fmtD(cl.accident)}</dd>
         <dt>ผู้เอาประกัน (ผิด)</dt><dd>${esc(cl.insuredPlate)}</dd>
+        <dt>ความเสียหาย</dt><dd>${SEV[cl.sev].label} <span class="muted small">(มาตรฐาน ${SEV[cl.sev].std} วัน)</span></dd>
+        <dt>อู่</dt><dd>${esc(garageOf(c).name)} ${gBadge(garageOf(c))}</dd>
       </dl>
       <dl class="kv">
         <dt>เข้าซ่อม</dt><dd>${fmtD(c.repairIn)}</dd>
@@ -726,13 +905,16 @@ function boAction(c) {
     const appeal = c.history.slice().reverse().find(h => h.text.startsWith('ขอทบทวน'));
     return `<div class="card"><h3>พิจารณาวงเงิน</h3>${errBox}
       ${c.appealCount && appeal ? `<div class="alert info"><span class="ico">i</span><span><b>ผู้เรียกร้องขอทบทวน:</b> ${esc(appeal.text.replace(/^ขอทบทวน:\s*/, ''))}</span></div>` : ''}
+      ${(() => { const cl = claimOf(c), std = SEV[cl.sev].std, rti = rd / std; return `<div class="alert ${rti > 1.3 ? 'warn' : 'info'}"><span class="ico">i</span><span>ความเสียหาย${SEV[cl.sev].label} มาตรฐาน ${std} วัน · ซ่อมจริง ${rd} วันที่ ${esc(garageOf(c).name)} (${GTYPE[garageOf(c).type].label}) · ดัชนีเวลาซ่อม ${rti.toFixed(2)}</span></div>`; })()}
       ${rd > 30 ? `<div class="alert warn"><span class="ico">!</span><span>ระยะเวลาซ่อม ${rd} วัน นานกว่าปกติ ควรตรวจสาเหตุ</span></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="bo-days">จำนวนวันที่อนุมัติ</label><input class="input num" type="number" id="bo-days" data-t="adays" min="0" max="${rd}" value="${esc(ad)}"><span class="hint">ขอมา ${rd} วัน</span></div>
         <div class="field"><label>อัตราต่อวัน</label><div class="input num" style="background:var(--sunk)">${r.toLocaleString('th-TH')} บาท</div></div>
       </div>
       <div class="est" id="boEst"><span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span></div>
-      <div class="field"><label for="bo-reason">เหตุผลที่ปรับลด <span class="muted small">(จำเป็นถ้าน้อยกว่าที่ขอ)</span></label><textarea class="input" id="bo-reason" data-t="reason">${esc(t.reason || '')}</textarea></div>
+      <div class="field"><label for="bo-rcode">เหตุผลที่ปรับลด <span class="muted small">(จำเป็นถ้าน้อยกว่าที่ขอ)</span></label>
+        <select class="input" id="bo-rcode" data-t="rcode"><option value="">ไม่ได้ปรับลด</option>${Object.entries(REASONS).map(([k, v]) => `<option value="${k}" ${t.rcode === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
+      <div class="field"><label for="bo-reason">รายละเอียดเพิ่มเติม <span class="muted small">(ผู้เรียกร้องจะเห็นข้อความนี้)</span></label><textarea class="input" id="bo-reason" data-t="reason">${esc(t.reason || '')}</textarea></div>
       <button class="btn primary" data-a="boPropose" style="align-self:flex-start">เสนอยอดเข้าสายอนุมัติ</button></div>`;
   }
   if (c.status === 'PENDING_APPROVAL') {
@@ -755,6 +937,200 @@ function boAction(c) {
       ${c.status === 'PAID' ? `<div class="row"><button class="btn ghost sm" data-a="docLetter" data-id="${c.id}">หนังสือยืนยันการจ่ายเงิน</button><button class="btn ghost sm" data-a="docConsent" data-id="${c.id}">หนังสือยินยอม</button></div>` : ''}</div>`;
   }
   return `<div class="card"><h3>รอผู้เรียกร้อง</h3><p class="muted">${esc(ST[c.status].bo)} ไม่มีงานที่ต้องทำในตอนนี้</p></div>`;
+}
+
+/* =================== MANAGER REPORT =================== */
+const DMS = 864e5;
+const subAt = c => Date.parse(c.history[0].at);
+const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+const avg = (a, f) => a.length ? sum(a, f) / a.length : 0;
+const lin = (v, good, bad) => Math.max(0, Math.min(100, 100 * (bad - v) / (bad - good)));
+const short = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(Math.round(n));
+const GRADE = { A:['ok', 'ดีมาก'], B:['info', 'ดี'], C:['warn', 'พอใช้'], D:['bad', 'ต้องปรับปรุง'] };
+const gradeOf = s => s >= 80 ? 'A' : s >= 65 ? 'B' : s >= 50 ? 'C' : 'D';
+const rtiColor = r => r <= 1.0 ? 'var(--st-good)' : r <= 1.3 ? 'var(--st-warn)' : 'var(--st-crit)';
+const tipAttr = t => `data-tip="${esc(t)}"`;
+const idChips = list => list.slice(0, 6).map(c => `<button class="idchip" data-a="boJump" data-id="${c.id}">${c.id.slice(-4)}</button>`).join(' ') + (list.length > 6 ? ` <span class="small muted">+${list.length - 6}</span>` : '');
+
+// แต่ละเคสที่ซ่อมเสร็จ → ตัวชี้วัดของอู่
+function repairRows(cases) {
+  const rows = cases.filter(c => c.repairOut).map(c => {
+    const g = garageOf(c), sev = claimOf(c).sev, std = SEV[sev].std, d = reqDays(c);
+    const pay = c.approvedDays ?? d, rate = RATES[c.type].rate;
+    return { c, g, sev, std, d, rti: d / std, on: c.expectedOut ? c.repairOut <= c.expectedOut : d <= std,
+      excess: Math.max(0, pay - std) * rate, lou: c.approvedAmount ?? d * rate, repair: c.repairCost || 0 };
+  });
+  const sevAvg = {};
+  Object.keys(SEV).forEach(k => { const r = rows.filter(x => x.sev === k); sevAvg[k] = r.length ? avg(r, x => x.repair + x.lou) : 1; });
+  rows.forEach(x => { x.total = x.repair + x.lou; x.ci = x.total / sevAvg[x.sev]; });
+  return rows;
+}
+function garageScore(rs) {
+  const rti = avg(rs, x => x.rti), on = avg(rs, x => x.on ? 1 : 0), ci = avg(rs, x => x.ci);
+  return { n: rs.length, rti, on, ci, days: avg(rs, x => x.d), excess: sum(rs, x => x.excess),
+    score: Math.round(0.5 * lin(rti, 1.0, 1.6) + 0.25 * on * 100 + 0.25 * lin(ci, 0.9, 1.3)) };
+}
+
+function renderReport() {
+  const now = Date.now(), P = UI.rp === '30' ? 30 : UI.rp === '90' ? 90 : 3650, from = now - P * DMS;
+  const all = S.cases, sub = all.filter(c => subAt(c) >= from);
+  const open = all.filter(c => c.status !== 'PAID');
+  const paidP = all.filter(c => c.status === 'PAID' && Date.parse(c.payment.at) >= from);
+  const ageD = c => (now - Date.parse(c.statusAt || c.history[c.history.length - 1].at)) / DMS;
+  const exposure = sum(open, c => c.approvedAmount ?? reqAmount(c));
+  const lead = avg(paidP, c => (Date.parse(c.payment.at) - subAt(c)) / DMS);
+
+  /* --- alerts --- */
+  const overdue = open.filter(c => SLA[c.status] && ageD(c) > SLA[c.status]);
+  const step3 = all.filter(c => c.status === 'PENDING_APPROVAL' && requiredStep(c.approvedAmount) === 3 && c.approvals.length === 2);
+  const nearLine = all.filter(c => c.approvedAmount && c.approvedAmount < reqAmount(c) && [5000, 20000].some(L => c.approvedAmount <= L && c.approvedAmount > L * 0.9 && reqAmount(c) > L));
+  const byAcct = {}; all.forEach(c => (byAcct[c.bank.acct] = byAcct[c.bank.acct] || []).push(c));
+  const dupAcct = Object.values(byAcct).filter(a => a.length > 1).flat();
+  const longRepair = sub.filter(c => c.repairOut && reqDays(c) > 30);
+  const failed = all.filter(c => c.status === 'PAYMENT_FAILED');
+  const alerts = [
+    ['var(--st-crit)', '!', 'งานเกิน SLA ฝั่งบริษัท', 'ค้างนานกว่ากำหนดในขั้นตรวจเอกสาร พิจารณา อนุมัติ หรือรอโอน', overdue],
+    ['var(--st-warn)', '!', 'รอคุณอนุมัติที่ Step 3', 'ผ่าน Step 1 และ 2 แล้ว', step3],
+    ['var(--st-crit)', '!', 'ปรับลดจนต่ำกว่าเส้นอำนาจอนุมัติ', 'ยอดขอเกินเส้น 5,000/20,000 แต่ยอดอนุมัติอยู่ใต้เส้นไม่เกิน 10%', nearLine],
+    ['var(--st-crit)', '!', 'บัญชีรับเงินซ้ำหลายคำร้อง', 'เลขบัญชีเดียวกันในคำร้องต่างเคลม', dupAcct],
+    ['var(--st-warn)', '!', 'ซ่อมนานเกิน 30 วัน', 'ในช่วงเวลาที่เลือก', longRepair],
+    ['var(--st-crit)', '✕', 'โอนเงินไม่สำเร็จ', 'รอผู้เรียกร้องแก้บัญชี', failed],
+  ].filter(a => a[4].length);
+
+  /* --- monthly paid trend (4 months) --- */
+  const months = [3, 2, 1, 0].map(k => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return d; });
+  const mData = months.map((d, i) => {
+    const list = all.filter(c => c.status === 'PAID' && (p => p.getFullYear() === d.getFullYear() && p.getMonth() === d.getMonth())(new Date(c.payment.at)));
+    return { label: d.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }) + (i === 3 ? ' (ถึงวันนี้)' : ''), n: list.length, amt: sum(list, c => c.approvedAmount) };
+  });
+  const mMax = Math.max(1, ...mData.map(m => m.amt)), step = Math.pow(10, Math.floor(Math.log10(mMax))) * (mMax / Math.pow(10, Math.floor(Math.log10(mMax))) > 5 ? 2 : 1);
+  const yMax = Math.ceil(mMax / step) * step || 1, ticks = [0.5, 1].map(f => yMax * f);
+  const trend = `<div class="vb" role="img" aria-label="ยอดจ่ายรายเดือน">
+      ${ticks.map(v => `<div class="gl" style="bottom:${v / yMax * 100}%"><span>${short(v)}</span></div>`).join('')}
+      ${mData.map(m => `<div class="col" ${tipAttr(`${m.label}: จ่าย ${m.n} เคส · ${baht(m.amt)}`)}><span class="val">${short(m.amt)}</span><div class="bar" style="height:${m.amt / yMax * 100}%"></div></div>`).join('')}
+    </div><div class="vx">${mData.map(m => `<span>${m.label}<br>${m.n} เคส</span>`).join('')}</div>`;
+
+  /* --- pipeline & aging --- */
+  const STAGES = [['ตรวจเอกสาร', ['SUBMITTED']], ['พิจารณายอด', ['UNDER_REVIEW']], ['รออนุมัติ', ['PENDING_APPROVAL']], ['รอโอนเงิน', ['ACCEPTED']],
+    ['รอผู้เรียกร้องตอบรับ', ['OFFERED']], ['รอเอกสาร / รถซ่อม', ['NEED_INFO', 'WAITING_REPAIR', 'PAYMENT_FAILED']]];
+  const BK = [['0–2 วัน', 'var(--o1)', a => a <= 2], ['3–5 วัน', 'var(--o2)', a => a > 2 && a <= 5], ['เกิน 5 วัน', 'var(--o3)', a => a > 5]];
+  const pRows = STAGES.map(([lab, sts]) => { const l = open.filter(c => sts.includes(c.status)); return { lab, l, b: BK.map(k => l.filter(c => k[2](ageD(c)))), over: l.filter(c => SLA[c.status] && ageD(c) > SLA[c.status]).length }; });
+  const pMax = Math.max(1, ...pRows.map(r => r.l.length));
+  const pipeline = `<div class="legend">${BK.map(k => `<span><i class="sw" style="background:${k[1]}"></i>${k[0]}</span>`).join('')}<span>นับจากวันที่เข้าสถานะ</span></div>
+    <div>${pRows.map(r => `<div class="hb"><span>${r.lab}${r.over ? ` <span class="sdot small" style="--c:var(--st-crit)">${r.over} เกิน SLA</span>` : ''}</span>
+      <div class="track" style="width:${r.l.length / pMax * 100}%">${r.b.map((l, i) => l.length ? `<div class="sgm" style="flex:${l.length};background:${BK[i][1]}" ${tipAttr(`${r.lab} · ${BK[i][0]}: ${l.length} เคส`)}></div>` : '').join('')}</div>
+      <span class="n">${r.l.length}</span></div>`).join('')}</div>`;
+
+  /* --- approval steps --- */
+  const appr = TIERS.map(tr => {
+    const waiting = all.filter(c => c.status === 'PENDING_APPROVAL' && c.approvals.length === tr.step - 1 && requiredStep(c.approvedAmount) >= tr.step);
+    const durs = []; all.forEach(c => { const a = c.approvals.find(x => x.step === tr.step); if (!a || Date.parse(a.at) < from) return;
+      const prev = tr.step === 1 ? c.proposedAt : c.approvals.find(x => x.step === tr.step - 1)?.at; if (prev) durs.push((Date.parse(a.at) - Date.parse(prev)) / 36e5); });
+    return { tr, waiting, n: durs.length, hrs: durs.length ? sum(durs, x => x) / durs.length : 0 };
+  });
+
+  /* --- requested vs approved --- */
+  const decided = sub.filter(c => c.approvedAmount);
+  const reqT = sum(decided, c => reqAmount(c)), apT = sum(decided, c => c.approvedAmount);
+  const reasons = Object.keys(REASONS).map(k => ({ k, n: decided.filter(c => c.reasonCode === k).length, cut: sum(decided.filter(c => c.reasonCode === k), c => reqAmount(c) - c.approvedAmount) })).filter(r => r.n).sort((a, b) => b.cut - a.cut);
+  const rMax = Math.max(1, ...reasons.map(r => r.cut));
+
+  /* --- garages --- */
+  const rows = repairRows(sub);
+  const byType = Object.keys(GTYPE).map(tp => ({ tp, rs: rows.filter(x => x.g.type === tp) })).map(o => ({ ...o, sc: garageScore(o.rs), repair: avg(o.rs, x => x.repair), lou: avg(o.rs, x => x.lou) }));
+  const [dl, gn] = byType;
+  const cmpRows = [
+    ['จำนวนเคสที่ซ่อมเสร็จ', o => o.sc.n, v => v, null],
+    ['วันซ่อมเฉลี่ย', o => o.sc.days, v => v.toFixed(1) + ' วัน', 'low'],
+    ['ดัชนีเวลาซ่อม (RTI)', o => o.sc.rti, v => v.toFixed(2), 'low'],
+    ['ซ่อมเสร็จตรงวันนัด', o => o.sc.on, v => Math.round(v * 100) + '%', 'high'],
+    ['ค่าซ่อมเฉลี่ย/เคส', o => o.repair, v => baht(Math.round(v)), 'low'],
+    ['ค่าขาดประโยชน์เฉลี่ย/เคส', o => o.lou, v => baht(Math.round(v)), 'low'],
+    ['ต้นทุนรวมเฉลี่ย/เคส', o => o.repair + o.lou, v => baht(Math.round(v)), 'low'],
+    ['ค่าขาดประโยชน์ส่วนเกินจากความล่าช้า', o => o.sc.excess, v => baht(Math.round(v)), 'low'],
+  ];
+  const cmp = `<div class="tblwrap"><table class="tbl cmp"><tr><th>ตัวชี้วัด</th><th class="r">${GTYPE.dealer.label}</th><th class="r">${GTYPE.general.label}</th></tr>
+    ${cmpRows.map(([l, f, fmt, dir]) => { const a = f(dl), b = f(gn), best = !dir || a === b ? '' : (dir === 'low') === (a < b) ? 'a' : 'b';
+      return `<tr><td>${l}</td><td class="r num ${best === 'a' ? 'best' : ''}">${fmt(a)}</td><td class="r num ${best === 'b' ? 'best' : ''}">${fmt(b)}</td></tr>`; }).join('')}</table></div>`;
+  const cMax = Math.max(1, ...byType.map(o => o.repair + o.lou));
+  const costBar = `<div class="legend"><span><i class="sw" style="background:var(--s1)"></i>ค่าซ่อม</span><span><i class="sw" style="background:var(--s2)"></i>ค่าขาดประโยชน์</span></div>
+    ${byType.map(o => `<div class="hb"><span>${GTYPE[o.tp].label}</span><div class="track" style="width:${(o.repair + o.lou) / cMax * 100}%">
+      <div class="sgm" style="flex:${o.repair};background:var(--s1)" ${tipAttr(`${GTYPE[o.tp].label} · ค่าซ่อมเฉลี่ย ${baht(Math.round(o.repair))}`)}></div>
+      <div class="sgm" style="flex:${Math.max(o.lou, 1)};background:var(--s2)" ${tipAttr(`${GTYPE[o.tp].label} · ค่าขาดประโยชน์เฉลี่ย ${baht(Math.round(o.lou))}`)}></div></div>
+      <span class="n">${short(o.repair + o.lou)}</span></div>`).join('')}`;
+  const sevTbl = `<div class="tblwrap"><table class="tbl"><tr><th>ระดับความเสียหาย</th><th class="r">มาตรฐาน</th><th class="r">${GTYPE.dealer.label}</th><th class="r">${GTYPE.general.label}</th></tr>
+    ${Object.entries(SEV).map(([k, v]) => { const f = tp => { const r = rows.filter(x => x.sev === k && x.g.type === tp); return r.length ? avg(r, x => x.d).toFixed(1) : '–'; };
+      return `<tr><td>${v.label}</td><td class="r num">${v.std}</td><td class="r num">${f('dealer')}</td><td class="r num">${f('general')}</td></tr>`; }).join('')}</table></div>`;
+  // scorecard
+  const gmap = {}; rows.forEach(x => (gmap[x.g.id] = gmap[x.g.id] || { g: x.g, rs: [] }).rs.push(x));
+  let cards = Object.values(gmap).map(o => ({ ...o, sc: garageScore(o.rs) }));
+  const sorters = { score: (a, b) => a.sc.score - b.sc.score, rti: (a, b) => b.sc.rti - a.sc.rti, excess: (a, b) => b.sc.excess - a.sc.excess };
+  cards.sort(sorters[UI.gsort] || sorters.score);
+  const watch = cards.filter(o => o.sc.n >= 3 && gradeOf(o.sc.score) === 'D');
+  const dayGap = gn.sc.days - dl.sc.days, costGap = (dl.repair + dl.lou) - (gn.repair + gn.lou);
+  const insight = dl.sc.n && gn.sc.n ? `อู่นอกซ่อมนานกว่าอู่ห้างเฉลี่ย <b>${dayGap.toFixed(1)} วัน</b> (RTI ${gn.sc.rti.toFixed(2)} เทียบ ${dl.sc.rti.toFixed(2)})
+      ${costGap > 0 ? `แต่ต้นทุนรวมต่อเคสยังต่ำกว่า <b>${baht(Math.round(costGap))}</b> เพราะค่าซ่อมถูกกว่า` : `และต้นทุนรวมต่อเคสสูงกว่า <b>${baht(Math.round(-costGap))}</b>`}
+      · ค่าขาดประโยชน์ส่วนเกินจากความล่าช้ารวม <b>${baht(Math.round(dl.sc.excess + gn.sc.excess))}</b> โดย ${Math.round(gn.sc.excess / Math.max(1, dl.sc.excess + gn.sc.excess) * 100)}% มาจากอู่นอก
+      ${watch.length ? `<br>อู่ที่ควรเรียกคุยหรือพิจารณาถอดออกจากรายชื่อแนะนำ: <b>${watch.map(o => esc(o.g.name)).join(', ')}</b>` : ''}` : 'ยังมีข้อมูลไม่พอสำหรับเปรียบเทียบ';
+  const score = `<div class="tblwrap"><table class="tbl"><tr><th>อู่</th><th class="r">เคส</th><th class="r">วันเฉลี่ย</th><th>ดัชนีเวลาซ่อม</th><th class="r">ตรงนัด</th><th class="r">ส่วนเกินจากความล่าช้า</th><th class="r">คะแนน</th><th>เกรด</th></tr>
+    ${cards.map(o => { const gr = gradeOf(o.sc.score); return `<tr><td>${esc(o.g.name)} ${gBadge(o.g)}${o.sc.n < 3 ? ' <span class="small muted">ข้อมูลน้อย</span>' : ''}</td>
+      <td class="r num">${o.sc.n}</td><td class="r num">${o.sc.days.toFixed(1)}</td>
+      <td><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="rti" ${tipAttr(`RTI ${o.sc.rti.toFixed(2)} · เส้นกลาง = 1.00 (ตามมาตรฐาน)`)}><b style="width:${Math.min(100, o.sc.rti / 2 * 100)}%;background:${rtiColor(o.sc.rti)}"></b><i></i></span><span class="num small">${o.sc.rti.toFixed(2)}</span></span></td>
+      <td class="r num">${Math.round(o.sc.on * 100)}%</td><td class="r num">${baht(Math.round(o.sc.excess))}</td>
+      <td class="r num"><b>${o.sc.score}</b></td><td><span class="pill ${GRADE[gr][0]}">${gr} · ${GRADE[gr][1]}</span></td></tr>`; }).join('')}</table></div>`;
+
+  const kpi = (l, v, d) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;
+  const per = { '30':'30 วันล่าสุด', '90':'90 วันล่าสุด', all:'ทั้งหมด' }[UI.rp];
+  return `
+  <div class="rtop"><div><h2>รายงานผู้จัดการฝ่ายสินไหม</h2><p class="small muted">ข้อมูลจำลอง ณ ${fmtDT(new Date().toISOString())}</p></div>
+    <div class="filters" role="group" aria-label="ช่วงเวลา">${[['30', '30 วัน'], ['90', '90 วัน'], ['all', 'ทั้งหมด']].map(([v, l]) => `<button data-a="rp" data-v="${v}" aria-pressed="${UI.rp === v}">${l}</button>`).join('')}</div></div>
+  <div class="kpis" style="margin-bottom:16px">
+    ${kpi('คำร้องใหม่', sub.length, per)}
+    ${kpi('งานค้างตอนนี้', open.length, `${overdue.length} เคสเกิน SLA ฝั่งบริษัท`)}
+    ${kpi('จ่ายแล้ว', baht(sum(paidP, c => c.approvedAmount)), `${paidP.length} เคส · ${per}`)}
+    ${kpi('ยอดที่คาดว่าต้องจ่าย', baht(exposure), 'จากงานค้างทั้งหมด')}
+    ${kpi('ยื่น → ได้เงิน เฉลี่ย', lead.toFixed(1) + ' วัน', `เคสที่จ่ายใน${per}`)}
+  </div>
+  <div class="rgrid">
+    <section class="card span2"><div class="sec-h"><h3>ต้องดูวันนี้</h3><span class="small muted">กดเลขคำร้องเพื่อเปิด</span></div>
+      ${alerts.length ? `<div class="alist">${alerts.map(([c, ic, t, d, l]) => `<div class="arow"><span class="ai" style="--c:${c}">${ic}</span><div><b>${t}</b><div class="small muted">${d}</div><div style="margin-top:6px">${idChips(l)}</div></div><span class="ac">${l.length}</span></div>`).join('')}</div>` : `<div class="alert ok"><span class="ico">✓</span><span>ไม่มีเรื่องผิดปกติ</span></div>`}
+    </section>
+
+    <section class="card"><div class="sec-h"><h3>ยอดจ่ายรายเดือน</h3><span class="small muted">บาท</span></div>${trend}</section>
+    <section class="card"><div class="sec-h"><h3>งานค้างและอายุงาน</h3><span class="small muted">${open.length} เคส</span></div>${pipeline}</section>
+
+    <section class="card"><h3>สายอนุมัติวงเงิน</h3>
+      <div class="tblwrap"><table class="tbl"><tr><th>Step</th><th class="r">รออยู่</th><th class="r">อนุมัติแล้ว</th><th class="r">เวลาเฉลี่ย</th></tr>
+      ${appr.map(a => `<tr><td>Step ${a.tr.step} · ${esc(a.tr.role)}</td><td class="r num">${a.waiting.length ? `<span class="sdot" style="--c:${a.waiting.some(c => ageD(c) > SLA.PENDING_APPROVAL) ? 'var(--st-crit)' : 'var(--st-good)'}">${a.waiting.length}</span>` : '0'}</td><td class="r num">${a.n}</td><td class="r num">${a.n ? (a.hrs < 48 ? a.hrs.toFixed(0) + ' ชม.' : (a.hrs / 24).toFixed(1) + ' วัน') : '–'}</td></tr>`).join('')}</table></div>
+      <p class="small muted">เวลาเฉลี่ยนับจากขั้นก่อนหน้าจนถึงเวลาอนุมัติ · SLA ${SLA.PENDING_APPROVAL} วันต่อขั้น</p></section>
+
+    <section class="card"><h3>ยอดขอเทียบยอดอนุมัติ</h3>
+      <dl class="kv"><dt>ยอดขอ</dt><dd class="num">${baht(reqT)}</dd><dt>ยอดอนุมัติ</dt><dd class="num">${baht(apT)}</dd><dt>ปรับลด</dt><dd class="num">${baht(reqT - apT)} (${reqT ? ((reqT - apT) / reqT * 100).toFixed(1) : 0}%) · ${decided.filter(c => c.reasonCode).length} จาก ${decided.length} เคส</dd></dl>
+      <div><p class="small muted" style="margin-bottom:4px">ยอดที่ปรับลดแยกตามเหตุผล</p>
+      ${reasons.length ? reasons.map(r => `<div class="hb"><span class="small">${esc(REASONS[r.k])}</span><div class="track" style="width:${r.cut / rMax * 100}%"><div class="sgm" style="flex:1;background:var(--s1)" ${tipAttr(`${REASONS[r.k]}: ${r.n} เคส · ลด ${baht(r.cut)}`)}></div></div><span class="n">${short(r.cut)}</span></div>`).join('') : '<p class="small muted">ไม่มีการปรับลด</p>'}</div>
+      <div class="tblwrap"><table class="tbl"><tr><th>ประเภทรถ</th><th class="r">เคส</th><th class="r">วันอนุมัติเฉลี่ย</th><th class="r">ยอดเฉลี่ย</th></tr>
+      ${Object.entries(RATES).map(([k, v]) => { const l = decided.filter(c => c.type === k); return `<tr><td>${esc(v.label)}</td><td class="r num">${l.length}</td><td class="r num">${l.length ? avg(l, c => c.approvedDays).toFixed(1) : '–'}</td><td class="r num">${l.length ? baht(Math.round(avg(l, c => c.approvedAmount))) : '–'}</td></tr>`; }).join('')}</table></div></section>
+
+    <section class="card span2"><div class="sec-h"><h3>ประสิทธิภาพอู่: อู่ห้าง เทียบ อู่นอก</h3><span class="small muted">เคสที่ซ่อมเสร็จ ${rows.length} เคส · ${per}</span></div>
+      <div class="insight">${insight}</div>
+      <div class="rgrid">
+        <div class="stack">${cmp}</div>
+        <div class="stack"><p class="small muted">ต้นทุนรวมเฉลี่ยต่อเคส (บาท)</p>${costBar}<p class="small muted" style="margin-top:8px">วันซ่อมเฉลี่ยตามระดับความเสียหาย</p>${sevTbl}</div>
+      </div>
+    </section>
+
+    <section class="card span2"><div class="sec-h"><h3>คะแนนอู่ (Garage Scorecard)</h3>
+      <div class="filters" role="group" aria-label="เรียงตาม">${[['score', 'คะแนนต่ำสุดก่อน'], ['rti', 'ซ่อมช้าที่สุดก่อน'], ['excess', 'ส่วนเกินมากที่สุดก่อน']].map(([v, l]) => `<button data-a="gsort" data-v="${v}" aria-pressed="${UI.gsort === v}">${l}</button>`).join('')}</div></div>
+      ${score}
+      <details><summary class="small">วิธีคิดคะแนน</summary><div class="stack small" style="margin-top:8px">
+        <p><b>ดัชนีเวลาซ่อม (RTI)</b> = วันซ่อมจริง ÷ วันมาตรฐานของระดับความเสียหาย (${Object.values(SEV).map(v => `${v.label} ${v.std} วัน`).join(', ')}) · 1.00 คือตรงมาตรฐาน มากกว่า 1.30 ถือว่าช้า</p>
+        <p><b>ตรงนัด</b> = สัดส่วนเคสที่รับรถคืนได้ไม่เกินวันที่อู่นัด (ถ้าไม่มีวันนัด ใช้วันมาตรฐานแทน)</p>
+        <p><b>ดัชนีต้นทุน</b> = (ค่าซ่อม + ค่าขาดประโยชน์) ÷ ค่าเฉลี่ยของเคสระดับความเสียหายเดียวกัน</p>
+        <p><b>คะแนน (0–100)</b> = 50% เวลา (RTI 1.00 = เต็ม, 1.60 = 0) + 25% ตรงนัด + 25% ต้นทุน (ดัชนี 0.90 = เต็ม, 1.30 = 0) · เกรด A ≥ 80, B ≥ 65, C ≥ 50, D ต่ำกว่า 50</p>
+        <p><b>ส่วนเกินจากความล่าช้า</b> = (วันที่อนุมัติจ่าย − วันมาตรฐาน) × อัตราต่อวัน คือเงินที่บริษัทจ่ายเพิ่มเพราะอู่ซ่อมช้ากว่ามาตรฐาน</p>
+      </div></details>
+    </section>
+  </div>`;
 }
 
 /* =================== modal =================== */
@@ -820,6 +1196,8 @@ function wizValidate() {
     if (!f.pdpa) return 'กรุณาให้ความยินยอมการใช้ข้อมูลเพื่อดำเนินการต่อ';
   }
   if (w.step === 2) {
+    if (!f.garage) return 'เลือกอู่ที่ซ่อมรถ';
+    if (f.garage === 'other' && (!f.garageName.trim() || !f.garageType)) return 'กรอกชื่ออู่และเลือกประเภทอู่';
     if (!f.repairIn) return 'กรอกวันที่รถเข้าซ่อม';
     if (f.repairIn < w.claim.accident) return 'วันที่รถเข้าซ่อมต้องไม่ก่อนวันเกิดเหตุ';
     if (f.repairIn > todayISO()) return 'วันที่รถเข้าซ่อมต้องไม่เกินวันนี้';
@@ -852,9 +1230,11 @@ function submit() {
   S.seq += 1;
   const id = 'LU-2569-' + String(S.seq).padStart(4, '0');
   const pending = isFuture(f.repairOut);
-  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:pending ? '' : f.repairOut, expectedOut:pending ? f.repairOut : '', bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
-    docs:{ ...w.docs }, status: pending ? 'WAITING_REPAIR' : 'SUBMITTED', approvals:[], appealCount:0, history:[] };
+  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:pending ? '' : f.repairOut, expectedOut:pending ? f.repairOut : '',
+    garageId:f.garage === 'other' ? null : f.garage, garageName:f.garage === 'other' ? f.garageName.trim() : undefined, garageType:f.garage === 'other' ? f.garageType : undefined, bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
+    docs:{ ...w.docs }, status: pending ? 'WAITING_REPAIR' : 'SUBMITTED', statusAt:new Date().toISOString(), approvals:[], appealCount:0, history:[] };
   log(k, pending ? `ยื่นคำร้อง (รถยังซ่อมไม่เสร็จ อู่นัดรับรถ ${fmtD(f.repairOut)})` : 'ยื่นคำร้อง', 'claimant');
+  k.repairCost = repairCostOf(c.sev, garageOf(k).type);
   S.cases.unshift(k); save();
   UI.caseId = id; UI.page = 'done'; UI.wiz = newWiz();
 }
@@ -862,7 +1242,7 @@ const sampleName = id => ({ idcard:'IMG_บัตรประชาชน.jpg', 
 
 const A = {
   view: b => { UI.view = b.dataset.v; UI.err = ''; UI.t = {}; try { localStorage.setItem(KEY + '-view', UI.view); } catch (e) {} },
-  reset: () => { S = seed(); save(); UI = { ...UI, page:'home', wiz:newWiz(), caseId:null, boId:null, t:{}, err:'', modal:null, bankLog:{} }; },
+  reset: () => { S = seedAll(); save(); UI = { ...UI, page:'home', wiz:newWiz(), caseId:null, boId:null, t:{}, err:'', modal:null, bankLog:{} }; },
   home: () => { UI.page = 'home'; UI.err = ''; UI.t = {}; },
   startWiz: () => { UI.wiz = newWiz(); UI.page = 'wizard'; },
   goTrack: () => { UI.page = 'track'; UI.err = ''; UI.t = {}; },
@@ -881,7 +1261,7 @@ const A = {
     const c = getCase(UI.caseId), out = UI.t.out;
     if (!out || out < c.repairIn || out > todayISO()) { UI.err = 'กรอกวันที่รับรถคืนให้ถูกต้อง (ไม่ก่อนวันเข้าซ่อม และไม่เกินวันนี้)'; return; }
     if (!UI.t.doc_repairOut) { UI.err = 'แนบใบส่งมอบรถ'; return; }
-    c.repairOut = out; c.docs.repairOut = UI.t.doc_repairOut; c.status = 'SUBMITTED';
+    c.repairOut = out; c.docs.repairOut = UI.t.doc_repairOut; setStatus(c, 'SUBMITTED');
     log(c, `ส่งวันที่รับรถคืน ${fmtD(out)} และใบส่งมอบรถ`, 'claimant'); save(); UI.t = {}; UI.err = '';
   },
   sendMore: () => {
@@ -889,7 +1269,7 @@ const A = {
     const miss = need.filter(id => !UI.t['doc_' + id]);
     if (miss.length) { UI.err = 'ยังไม่ได้แนบ: ' + miss.map(docLabel).join(', '); return; }
     need.forEach(id => { c.docs[id] = UI.t['doc_' + id]; });
-    c.status = 'SUBMITTED'; delete c.needInfo; log(c, 'ส่งเอกสารเพิ่ม: ' + need.map(docLabel).join(', '), 'claimant'); save(); UI.t = {}; UI.err = '';
+    setStatus(c, 'SUBMITTED'); delete c.needInfo; log(c, 'ส่งเอกสารเพิ่ม: ' + need.map(docLabel).join(', '), 'claimant'); save(); UI.t = {}; UI.err = '';
   },
   openSign: () => { UI.modal = { type:'sign', id:UI.caseId }; UI.err = ''; UI.t = {}; },
   openAppeal: () => { UI.modal = { type:'appeal', id:UI.caseId }; UI.err = ''; UI.t = {}; },
@@ -897,50 +1277,57 @@ const A = {
   ovClose: (b, e) => { if (e.target === b) { UI.modal = null; UI.err = ''; } else return false; },
   sign: () => {
     if (UI.t.sotp !== OTP) { UI.err = 'รหัส OTP ไม่ถูกต้อง'; return; }
-    const c = getCase(UI.modal.id); c.status = 'ACCEPTED'; c.signedAt = new Date().toISOString();
+    const c = getCase(UI.modal.id); setStatus(c, 'ACCEPTED'); c.signedAt = new Date().toISOString();
     log(c, `ลงนามตอบรับผลพิจารณา ${baht(c.approvedAmount)} ด้วย OTP`, 'claimant'); save(); UI.modal = null; UI.t = {}; UI.err = '';
   },
   appeal: () => {
     const why = (UI.t.why || '').trim(); if (why.length < 10) { UI.err = 'อธิบายเหตุผลอย่างน้อย 10 ตัวอักษร'; return; }
-    const c = getCase(UI.modal.id); c.status = 'UNDER_REVIEW'; c.appealCount += 1; c.approvals = []; delete c.adjustReason;
+    const c = getCase(UI.modal.id); setStatus(c, 'UNDER_REVIEW'); c.appealCount += 1; c.approvals = []; delete c.adjustReason; delete c.reasonCode;
     log(c, 'ขอทบทวน: ' + why, 'claimant'); save(); UI.modal = null; UI.t = {}; UI.err = '';
   },
   fixBank: () => {
     const c = getCase(UI.caseId), acct = (UI.t.acct || '').trim();
     if (!/^\d{10,12}$/.test(acct)) { UI.err = 'เลขบัญชีต้องเป็นตัวเลข 10–12 หลัก'; return; }
-    c.bank = { name: UI.t.bank || c.bank.name, acct }; c.status = 'ACCEPTED'; delete UI.bankLog[c.id];
+    c.bank = { name: UI.t.bank || c.bank.name, acct }; setStatus(c, 'ACCEPTED'); delete UI.bankLog[c.id];
     log(c, `แก้ไขบัญชีรับเงินเป็น ${c.bank.name} ${maskAcct(acct)}`, 'claimant'); save(); UI.t = {}; UI.err = '';
   },
   docLetter: b => { UI.modal = { type:'letter', id:b.dataset.id }; },
   docConsent: b => { UI.modal = { type:'consent', id:b.dataset.id }; },
   // back office
   boFilter: b => { UI.boFilter = b.dataset.v; UI.boId = null; UI.t = {}; UI.err = ''; },
+  boTab: b => { UI.boTab = b.dataset.v; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
+  rp: b => { UI.rp = b.dataset.v; },
+  gsort: b => { UI.gsort = b.dataset.v; },
+  boJump: b => { UI.boTab = 'queue'; UI.boFilter = 'all'; UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
   boOpen: b => { UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; },
   boToggleNeed: () => { UI.t.needOpen = !UI.t.needOpen; },
-  boDocsOk: () => { const c = curBO(); c.status = 'UNDER_REVIEW'; log(c, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); save(); UI.t = {}; },
+  boDocsOk: () => { const c = curBO(); setStatus(c, 'UNDER_REVIEW'); log(c, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); save(); UI.t = {}; },
   boNeed: () => {
     const c = curBO(), ids = DOCS.filter(d => UI.t['need_' + d.id]).map(d => d.id);
     if (!ids.length) { UI.err = 'เลือกเอกสารอย่างน้อย 1 รายการ'; return; }
-    c.needInfo = { docs: ids, note: (UI.t.note || '').trim() }; c.status = 'NEED_INFO';
+    c.needInfo = { docs: ids, note: (UI.t.note || '').trim() }; setStatus(c, 'NEED_INFO');
     log(c, 'ขอเอกสารเพิ่ม: ' + ids.map(docLabel).join(', '), 'company'); save(); UI.t = {}; UI.err = '';
   },
   boPropose: () => {
     const c = curBO(), rd = reqDays(c), ad = Number(UI.t.adays ?? rd), reason = (UI.t.reason || '').trim();
     if (!Number.isInteger(ad) || ad < 1 || ad > rd) { UI.err = `จำนวนวันต้องอยู่ระหว่าง 1–${rd}`; return; }
-    if (ad < rd && reason.length < 5) { UI.err = 'อนุมัติน้อยกว่าที่ขอ ต้องระบุเหตุผลให้ผู้เรียกร้องเข้าใจ'; return; }
+    const rcode = UI.t.rcode || '';
+    if (ad < rd && !rcode) { UI.err = 'อนุมัติน้อยกว่าที่ขอ ต้องเลือกเหตุผลที่ปรับลด'; return; }
+    if (rcode === 'other' && reason.length < 5) { UI.err = 'เลือก "อื่น ๆ" ต้องกรอกรายละเอียด'; return; }
     const r = RATES[c.type].rate; c.approvedDays = ad; c.approvedAmount = ad * r; c.approvals = [];
-    if (ad < rd) c.adjustReason = reason; else delete c.adjustReason;
-    c.status = 'PENDING_APPROVAL';
+    if (ad < rd) { c.reasonCode = rcode; c.adjustReason = REASONS[rcode] + (reason ? ' — ' + reason : ''); } else { delete c.adjustReason; delete c.reasonCode; }
+    c.proposedAt = new Date().toISOString();
+    setStatus(c, 'PENDING_APPROVAL');
     log(c, `เสนอยอด ${ad} วัน × ${r.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${requiredStep(c.approvedAmount)})`, 'company'); save(); UI.t = {}; UI.err = '';
   },
   boApprove: () => {
     const c = curBO(), t = TIERS[c.approvals.length];
     c.approvals.push({ step:t.step, who:t.who, at:new Date().toISOString() });
-    if (c.approvals.length >= requiredStep(c.approvedAmount)) { c.status = 'OFFERED'; log(c, `Step ${t.step} อนุมัติ (${t.who}) แจ้งผลพิจารณาแล้ว`, 'company'); }
+    if (c.approvals.length >= requiredStep(c.approvedAmount)) { setStatus(c, 'OFFERED'); log(c, `Step ${t.step} อนุมัติ (${t.who}) แจ้งผลพิจารณาแล้ว`, 'company'); }
     else log(c, `Step ${t.step} อนุมัติ (${t.who})`, 'company');
     save();
   },
-  boReturn: () => { const c = curBO(); c.status = 'UNDER_REVIEW'; c.approvals = []; log(c, 'ตีกลับให้พิจารณายอดใหม่', 'company'); save(); },
+  boReturn: () => { const c = curBO(); setStatus(c, 'UNDER_REVIEW'); c.approvals = []; log(c, 'ตีกลับให้พิจารณายอดใหม่', 'company'); save(); },
   boPay: () => {
     const c = curBO(), now = new Date(), ref = 'BNK' + now.toISOString().replace(/\D/g, '').slice(2, 14);
     const fail = /0000$/.test(c.bank.acct);
@@ -948,8 +1335,8 @@ const A = {
     const res = fail ? { status:422, code:'ACCOUNT_INVALID', message:'Destination account closed or name mismatch' } : { status:200, code:'SUCCESS', transactionRef:ref, settledAt:now.toISOString() };
     const lg = '→ ' + JSON.stringify(req, null, 2) + '\n← ' + JSON.stringify(res, null, 2);
     UI.bankLog[c.id] = lg;
-    if (fail) { c.status = 'PAYMENT_FAILED'; c.payment = { error:'ธนาคารปฏิเสธการโอน: บัญชีปลายทางปิดแล้วหรือชื่อบัญชีไม่ตรง', log:lg }; log(c, 'โอนเงินไม่สำเร็จ (ACCOUNT_INVALID)', 'system'); }
-    else { c.status = 'PAID'; c.payment = { ref, at:now.toISOString(), log:lg }; log(c, `โอนเงินสำเร็จ อ้างอิง ${ref} ออกหนังสือยืนยันแล้ว`, 'system'); }
+    if (fail) { setStatus(c, 'PAYMENT_FAILED'); c.payment = { error:'ธนาคารปฏิเสธการโอน: บัญชีปลายทางปิดแล้วหรือชื่อบัญชีไม่ตรง', log:lg }; log(c, 'โอนเงินไม่สำเร็จ (ACCOUNT_INVALID)', 'system'); }
+    else { setStatus(c, 'PAID'); c.payment = { ref, at:now.toISOString(), log:lg }; log(c, `โอนเงินสำเร็จ อ้างอิง ${ref} ออกหนังสือยืนยันแล้ว`, 'system'); }
     save();
   },
 };
@@ -985,9 +1372,14 @@ document.addEventListener('change', e => {
     if (el.dataset.cdoc) UI.t['doc_' + el.dataset.cdoc] = el.files[0].name;
     render();
   } else if (el.dataset.w === 'repairOut' || el.dataset.w === 'repairIn') { UI.wiz.f[el.dataset.w] = el.value; render();
+  } else if (el.dataset.w === 'garage') { UI.wiz.f.garage = el.value; render();
   } else if (el.tagName === 'SELECT' && el.dataset.w) { UI.wiz.f[el.dataset.w] = el.value; }
   else if (el.tagName === 'SELECT' && el.dataset.t) { UI.t[el.dataset.t] = el.value; }
 });
+const tipEl = () => document.getElementById('tip');
+document.addEventListener('pointerover', e => { const t = e.target.closest('[data-tip]'); const el = tipEl(); if (!t) { el.hidden = true; return; } el.textContent = t.dataset.tip; el.hidden = false; });
+document.addEventListener('pointermove', e => { const el = tipEl(); if (el.hidden) return; const w = el.offsetWidth, x = Math.min(e.clientX + 12, innerWidth - w - 8); el.style.left = Math.max(8, x) + 'px'; el.style.top = (e.clientY + 16) + 'px'; });
+document.addEventListener('scroll', () => { tipEl().hidden = true; }, { passive:true });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && UI.modal) { UI.modal = null; UI.err = ''; render(); } });
 
 render();
