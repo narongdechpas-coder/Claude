@@ -562,7 +562,7 @@ function render() {
 function renderClaimant() {
   if (UI.page === 'wizard') return `<main class="wrap wide">${wizard()}</main>`;
   if (UI.page === 'done') return `<main class="wrap">${done()}</main>`;
-  if (UI.page === 'track') return `<main class="wrap">${trackLookup()}</main>`;
+  if (UI.page === 'track') return `<main class="wrap wide">${trackLookup()}</main>`;
   if (UI.page === 'case' && getCase(UI.caseId)) return `<main class="wrap wide">${caseView(getCase(UI.caseId))}</main>`;
   return `<main class="wrap wide">${home()}</main>`;
 }
@@ -622,7 +622,7 @@ function wizard() {
   const err = w.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${w.err}</span></div>` : '';
   const back = `<button class="btn ghost" data-a="${w.step === 0 ? 'home' : 'wizBack'}">${w.step === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}</button>`;
   const body = [wStep0, wStep1, wStep2, wStep3, wStep4][w.step]();
-  return `<div class="split"><div class="ca">${stepper}<section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}</div><div class="cb sticky desk-only">${wizSide()}</div></div>`;
+  return `${stepper}<div class="split"><div class="ca"><section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}</div><div class="cb sticky desk-only">${wizSide()}</div></div>`;
 }
 function wizSide() {
   const w = UI.wiz, f = w.f, c = w.claim;
@@ -780,16 +780,16 @@ function done() {
 
 function trackLookup() {
   const t = UI.t;
-  return `<section class="card">
+  return `<div class="split"><div class="ca"><section class="card">
     <h2>ติดตามคำร้อง</h2>
     ${UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
     <div class="field"><label for="t-id">เลขคำร้อง</label><input class="input mono" id="t-id" data-t="tid" value="${esc(t.tid || '')}" placeholder="LU-2569-0000"></div>
     <div class="field"><label for="t-ph">เบอร์มือถือที่ใช้ยื่น</label><input class="input num" id="t-ph" data-t="tph" value="${esc(t.tph || '')}" inputmode="tel" maxlength="10"></div>
     <div class="row between"><button class="btn ghost" data-a="home">กลับ</button><button class="btn primary" data-a="lookup">ดูสถานะ</button></div>
-  </section>
-  <section class="flat"><span class="small"><b>ข้อมูลทดลอง</b> กดเพื่อเปิดคำร้องตัวอย่าง</span>
-    <div class="row">${S.cases.map(c => `<button class="chipbtn" data-a="openCase" data-id="${c.id}">${c.id} · ${esc(ST[c.status].me)}</button>`).join('')}</div>
-  </section>`;
+  </section></div><div class="cb">
+  <section class="card"><h3>ข้อมูลทดลอง</h3><p class="small muted">คำร้องตัวอย่าง 1 รายการต่อสถานะ กดเพื่อเปิด</p>
+    <div class="stack" style="gap:6px">${Object.keys(ST).map(st => S.cases.find(c => c.status === st)).filter(Boolean).slice(0, 6).map(c => `<button class="qi" style="grid-template-columns:1fr auto;padding:8px 12px" data-a="openCase" data-id="${c.id}"><span class="mono small">${c.id}</span>${pill(c.status, 'me')}</button>`).join('')}</div>
+  </section></div></div>`;
 }
 
 function caseView(c) {
