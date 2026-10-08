@@ -374,6 +374,7 @@ details.fold > summary{font-size:.9rem;color:var(--muted)}
 <div id="modal"></div>
 <div id="tip" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 'use strict';
 /* =================== ข้อมูลจำลอง & การตั้งค่า =================== */
@@ -1323,39 +1324,39 @@ const nameOf = c => claimOf(c).owner;
 function buildReport(kind) {
   const now = Date.now();
   let from, to, title, sub, fname;
-  if (kind === 'daily') { from = Date.parse(UI.repDate + 'T00:00:00'); to = from + 864e5; title = 'รายงานประจำวัน'; sub = new Date(from).toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); fname = `lou-daily-${UI.repDate}.csv`; }
-  else { const d = new Date(UI.repMonth + '-01T00:00:00'); from = d.getTime(); d.setMonth(d.getMonth() + 1); to = d.getTime(); title = 'รายงานประจำเดือน'; sub = monthLabel(UI.repMonth); fname = `lou-monthly-${UI.repMonth}.csv`; }
+  if (kind === 'daily') { from = Date.parse(UI.repDate + 'T00:00:00'); to = from + 864e5; title = 'รายงานประจำวัน'; sub = new Date(from).toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); fname = `lou-daily-${UI.repDate}.xlsx`; }
+  else { const d = new Date(UI.repMonth + '-01T00:00:00'); from = d.getTime(); d.setMonth(d.getMonth() + 1); to = d.getTime(); title = 'รายงานประจำเดือน'; sub = monthLabel(UI.repMonth); fname = `lou-monthly-${UI.repMonth}.xlsx`; }
   const end = Math.min(to, now);
   const ev = eventsIn(from, to), cnt = k => ev.filter(e => e.k === k).length;
   const paidC = S.cases.filter(c => c.status === 'PAID' && Date.parse(c.payment.at) >= from && Date.parse(c.payment.at) < to);
   const openAtEnd = S.cases.filter(c => subAt(c) < end && !(c.status === 'PAID' && Date.parse(c.payment.at) < end));
   const sections = [];
   const kpis = [['คำร้องใหม่', cnt('submit')], ['ตรวจเอกสารผ่าน', cnt('docs')], ['ขอเอกสารเพิ่ม', cnt('needinfo')], ['เสนอยอด', cnt('propose')], ['อนุมัติ (ทุก Step)', cnt('approve')],
-    ['คู่กรณีตอบรับ', cnt('sign')], ['ขอทบทวน', cnt('appeal')], ['จ่ายเงิน (เคส)', paidC.length], ['ยอดจ่าย', baht(sum(paidC, c => c.approvedAmount))], ['โอนไม่สำเร็จ', cnt('payfail')],
-    [`งานค้าง ณ ${kind === 'daily' ? 'สิ้นวัน' : 'สิ้นเดือน'}`, openAtEnd.length], ['ยอดที่คาดว่าต้องจ่าย', baht(sum(openAtEnd, c => c.approvedAmount ?? reqAmount(c)))]];
+    ['คู่กรณีตอบรับ', cnt('sign')], ['ขอทบทวน', cnt('appeal')], ['จ่ายเงิน (เคส)', paidC.length], ['ยอดจ่าย (บาท)', sum(paidC, c => c.approvedAmount)], ['โอนไม่สำเร็จ', cnt('payfail')],
+    [`งานค้าง ณ ${kind === 'daily' ? 'สิ้นวัน' : 'สิ้นเดือน'}`, openAtEnd.length], ['ยอดที่คาดว่าต้องจ่าย (บาท)', sum(openAtEnd, c => c.approvedAmount ?? reqAmount(c))]];
   sections.push({ h:'สรุป', kpis });
   const payRows = paidC.sort((a, b) => Date.parse(a.payment.at) - Date.parse(b.payment.at)).map(c => [kind === 'daily' ? tm(Date.parse(c.payment.at)) : fmtD(c.payment.at), c.id, nameOf(c), claimOf(c).plate, garageOf(c).name, GTYPE[garageOf(c).type].label, c.approvedDays, c.approvedAmount, c.payment.ref]);
   if (kind === 'daily') {
     const overdue = S.cases.filter(c => c.status !== 'PAID' && SLA[c.status] && ageOf(c) > SLA[c.status]);
-    sections.push({ h:'การจ่ายเงินวันนี้', cols:['เวลา','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows:payRows });
-    sections.push({ h:'รายการเคลื่อนไหวทั้งวัน', cols:['เวลา','คำร้อง','ชื่อ','เหตุการณ์','โดย'], rows: ev.map(e => [tm(e.t), e.c.id, nameOf(e.c), e.h.text, e.h.by === 'claimant' ? 'ผู้เรียกร้อง' : e.h.by === 'company' ? 'บริษัท' : 'ระบบ']) });
-    if (UI.repDate === localISO(new Date())) sections.push({ h:'งานเกิน SLA ตอนนี้', cols:['คำร้อง','ชื่อ','สถานะ','ค้างมา (วัน)','SLA (วัน)'], num:[3, 4], rows: overdue.map(c => [c.id, nameOf(c), ST[c.status].bo, Math.floor(ageOf(c)), SLA[c.status]]) });
+    sections.push({ sh:'การจ่ายเงิน', h:'การจ่ายเงินวันนี้', cols:['เวลา','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows:payRows });
+    sections.push({ sh:'เคลื่อนไหวทั้งวัน', h:'รายการเคลื่อนไหวทั้งวัน', cols:['เวลา','คำร้อง','ชื่อ','เหตุการณ์','โดย'], rows: ev.map(e => [tm(e.t), e.c.id, nameOf(e.c), e.h.text, e.h.by === 'claimant' ? 'ผู้เรียกร้อง' : e.h.by === 'company' ? 'บริษัท' : 'ระบบ']) });
+    if (UI.repDate === localISO(new Date())) sections.push({ sh:'งานเกิน SLA', h:'งานเกิน SLA ตอนนี้', cols:['คำร้อง','ชื่อ','สถานะ','ค้างมา (วัน)','SLA (วัน)'], num:[3, 4], rows: overdue.map(c => [c.id, nameOf(c), ST[c.status].bo, Math.floor(ageOf(c)), SLA[c.status]]) });
   } else {
     const subM = S.cases.filter(c => subAt(c) >= from && subAt(c) < to);
     const dec = S.cases.filter(c => c.proposedAt && Date.parse(c.proposedAt) >= from && Date.parse(c.proposedAt) < to);
     const reqT = sum(dec, c => reqAmount(c)), apT = sum(dec, c => c.approvedAmount);
-    kpis.push(['ยอดขอ (เคสที่เสนอยอดในเดือน)', baht(reqT)], ['ยอดอนุมัติ', baht(apT)], ['ปรับลด', reqT ? ((reqT - apT) / reqT * 100).toFixed(1) + '%' : '–'],
-      ['ยื่น → ได้เงิน เฉลี่ย', paidC.length ? avg(paidC, c => (Date.parse(c.payment.at) - subAt(c)) / 864e5).toFixed(1) + ' วัน' : '–']);
+    kpis.push(['ยอดขอ (บาท) เคสที่เสนอยอดในเดือน', reqT], ['ยอดอนุมัติ (บาท)', apT], ['ปรับลด (%)', reqT ? +((reqT - apT) / reqT * 100).toFixed(1) : '–'],
+      ['ยื่น → ได้เงิน เฉลี่ย (วัน)', paidC.length ? +avg(paidC, c => (Date.parse(c.payment.at) - subAt(c)) / 864e5).toFixed(1) : '–']);
     // รายวันในเดือน
     const days = []; for (let t = from; t < to && t <= now; t += 864e5) days.push(t);
-    sections.push({ h:'แยกรายวัน', cols:['วันที่','คำร้องใหม่','จ่าย (เคส)','ยอดจ่าย (บาท)'], num:[1, 2, 3], rows: days.map(t => { const e = t + 864e5, p = paidC.filter(c => Date.parse(c.payment.at) >= t && Date.parse(c.payment.at) < e);
+    sections.push({ sh:'แยกรายวัน', h:'แยกรายวัน', cols:['วันที่','คำร้องใหม่','จ่าย (เคส)','ยอดจ่าย (บาท)'], num:[1, 2, 3], rows: days.map(t => { const e = t + 864e5, p = paidC.filter(c => Date.parse(c.payment.at) >= t && Date.parse(c.payment.at) < e);
       return [fmtD(localISO(new Date(t))), subM.filter(c => subAt(c) >= t && subAt(c) < e).length, p.length, sum(p, c => c.approvedAmount)]; }).filter(r => r[1] || r[2]) });
-    sections.push({ h:'แยกตามประเภทรถ (เคสที่จ่ายในเดือน)', cols:['ประเภทรถ','เคส','วันเฉลี่ย','ยอดรวม (บาท)'], num:[1, 2, 3], rows: Object.entries(RATES).map(([k, v]) => { const l = paidC.filter(c => c.type === k); return [v.label, l.length, l.length ? avg(l, c => c.approvedDays).toFixed(1) : '–', sum(l, c => c.approvedAmount)]; }) });
+    sections.push({ sh:'ประเภทรถ', h:'แยกตามประเภทรถ (เคสที่จ่ายในเดือน)', cols:['ประเภทรถ','เคส','วันเฉลี่ย','ยอดรวม (บาท)'], num:[1, 2, 3], rows: Object.entries(RATES).map(([k, v]) => { const l = paidC.filter(c => c.type === k); return [v.label, l.length, l.length ? +avg(l, c => c.approvedDays).toFixed(1) : '–', sum(l, c => c.approvedAmount)]; }) });
     const rr = repairRows(paidC);
-    sections.push({ h:'อู่ห้าง เทียบ อู่นอก (เคสที่จ่ายในเดือน)', cols:['ประเภทอู่','เคส','วันซ่อมเฉลี่ย','RTI','ตรงนัด','ค่าขาดประโยชน์ (บาท)','ส่วนเกินจากความล่าช้า (บาท)'], num:[1, 2, 3, 4, 5, 6],
-      rows: Object.keys(GTYPE).map(tp => { const l = rr.filter(x => x.g.type === tp), g = garageScore(l); return [GTYPE[tp].long, g.n, g.n ? g.days.toFixed(1) : '–', g.n ? g.rti.toFixed(2) : '–', g.n ? Math.round(g.on * 100) + '%' : '–', Math.round(sum(l, x => x.lou)), Math.round(g.excess)]; }) });
-    sections.push({ h:'เหตุผลการปรับลด', cols:['เหตุผล','เคส','ยอดที่ลด (บาท)'], num:[1, 2], rows: Object.keys(REASONS).map(k => { const l = dec.filter(c => c.reasonCode === k); return [REASONS[k], l.length, sum(l, c => reqAmount(c) - c.approvedAmount)]; }).filter(r => r[1]) });
-    sections.push({ h:'รายการจ่ายเงินในเดือน', cols:['วันที่จ่าย','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows: payRows });
+    sections.push({ sh:'อู่ห้าง vs อู่นอก', h:'อู่ห้าง เทียบ อู่นอก (เคสที่จ่ายในเดือน)', cols:['ประเภทอู่','เคส','วันซ่อมเฉลี่ย','RTI','ตรงนัด (%)','ค่าขาดประโยชน์ (บาท)','ส่วนเกินจากความล่าช้า (บาท)'], num:[1, 2, 3, 4, 5, 6],
+      rows: Object.keys(GTYPE).map(tp => { const l = rr.filter(x => x.g.type === tp), g = garageScore(l); return [GTYPE[tp].long, g.n, g.n ? +g.days.toFixed(1) : '–', g.n ? +g.rti.toFixed(2) : '–', g.n ? Math.round(g.on * 100) : '–', Math.round(sum(l, x => x.lou)), Math.round(g.excess)]; }) });
+    sections.push({ sh:'เหตุผลปรับลด', h:'เหตุผลการปรับลด', cols:['เหตุผล','เคส','ยอดที่ลด (บาท)'], num:[1, 2], rows: Object.keys(REASONS).map(k => { const l = dec.filter(c => c.reasonCode === k); return [REASONS[k], l.length, sum(l, c => reqAmount(c) - c.approvedAmount)]; }).filter(r => r[1]) });
+    sections.push({ sh:'รายการจ่ายเงิน', h:'รายการจ่ายเงินในเดือน', cols:['วันที่จ่าย','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows: payRows });
   }
   return { kind, title, sub, fname, sections, at: new Date().toISOString() };
 }
@@ -1381,10 +1382,32 @@ function reportCSV(r, sep) {
 }
 let DL = null;   // downloads capability (null = ใช้ไม่ได้ในมุมมองนี้ → ซ่อนปุ่มดาวน์โหลด)
 (async () => { try { DL = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { DL = null; } if (DL && UI.modal && UI.modal.type === 'rep') renderModal(); })();
+// Excel แยกชีต: ชีตแรกเป็นสรุป ชีตถัดไป 1 ตารางต่อ 1 ชีต (แถวแรกเป็นหัวคอลัมน์ กรอง/เรียงใน Excel ได้)
+function reportWorkbook(r) {
+  const wb = XLSX.utils.book_new();
+  const fit = (ws, aoa) => { ws['!cols'] = aoa[0].map((_, i) => ({ wch: Math.min(48, Math.max(8, ...aoa.map(row => String(row[i] ?? '').length + 2))) })); };
+  const fmt = ws => Object.keys(ws).forEach(k => { const c = ws[k]; if (k[0] !== '!' && c.t === 'n') c.z = Number.isInteger(c.v) ? '#,##0' : '#,##0.0#'; });
+  const sumAoa = [['รายงาน', r.title], ['ช่วงเวลา', r.sub], ['บริษัท', COMPANY], ['ออกรายงานเมื่อ', fmtDT(r.at)], [], ['ตัวชี้วัด', 'ค่า'], ...r.sections[0].kpis];
+  const ws0 = XLSX.utils.aoa_to_sheet(sumAoa); fit(ws0, sumAoa); fmt(ws0); XLSX.utils.book_append_sheet(wb, ws0, 'สรุป');
+  r.sections.slice(1).forEach(sec => {
+    const aoa = [sec.cols, ...sec.rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa); fit(ws, aoa); fmt(ws);
+    if (sec.rows.length) ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:sec.rows.length, c:sec.cols.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, (sec.sh || sec.h).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31));
+  });
+  return wb;
+}
 async function repDownload() {
   const r = UI.modal.rep;
-  try { await DL.save({ filename: r.fname, data: '﻿' + reportCSV(r, ',') }); UI.modal.msg = ['ok', `บันทึกไฟล์ ${r.fname} แล้ว`]; }
-  catch (e) { UI.modal.msg = e && e.code === 'declined' ? null : ['bad', e && e.code === 'rate_limited' ? 'มีหน้าต่างบันทึกเปิดอยู่ ลองใหม่อีกครั้ง' : 'บันทึกไฟล์ในมุมมองนี้ไม่ได้ ใช้ปุ่มคัดลอกแทน']; }
+  if (!window.XLSX) { UI.modal.msg = ['bad', 'โหลดตัวสร้างไฟล์ Excel ไม่สำเร็จ ลองเปิดหน้าใหม่ หรือใช้ปุ่มคัดลอกแทน']; renderModal(); return; }
+  try {
+    const buf = XLSX.write(reportWorkbook(r), { bookType:'xlsx', type:'array' });
+    await DL.save({ filename: r.fname, data: new Blob([buf]) });
+    UI.modal.msg = ['ok', `บันทึกไฟล์ ${r.fname} แล้ว (${r.sections.length} ชีต)`];
+  } catch (e) {
+    const code = e && e.code;
+    UI.modal.msg = code === 'declined' ? null : ['bad', code === 'rate_limited' ? 'มีหน้าต่างบันทึกเปิดอยู่ ลองใหม่อีกครั้ง' : code === 'extension_not_enabled' ? 'มุมมองนี้ยังไม่รองรับไฟล์ Excel ใช้ปุ่มคัดลอกแทน' : 'บันทึกไฟล์ในมุมมองนี้ไม่ได้ ใช้ปุ่มคัดลอกแทน'];
+  }
   renderModal();
 }
 
@@ -1524,7 +1547,7 @@ function renderModal() {
   if (m.type === 'rep') {
     host.innerHTML = `<div class="ov" data-a="ovClose"><div class="modal wide" role="dialog" aria-modal="true" aria-label="${esc(m.rep.title)}">
       <div class="row between"><h2>${esc(m.rep.title)}</h2><button class="btn ghost sm" data-a="closeModal">ปิด</button></div>
-      <div class="row">${DL ? `<button class="btn primary sm" data-a="repSave">ดาวน์โหลด CSV (Excel)</button>` : ''}<button class="btn ghost sm" data-a="repCopy">คัดลอกตารางไปวางใน Excel</button><span class="small muted">${esc(m.rep.fname)}</span></div>
+      <div class="row">${DL ? `<button class="btn primary sm" data-a="repSave">ดาวน์โหลด Excel (แยกชีต)</button>` : ''}<button class="btn ghost sm" data-a="repCopy">คัดลอกตารางไปวางใน Excel</button><span class="small muted">${esc(m.rep.fname)}</span></div>
       ${m.msg ? `<div class="alert ${m.msg[0]}"><span class="ico">${m.msg[0] === 'ok' ? '✓' : '!'}</span><span>${esc(m.msg[1])}</span></div>` : ''}
       ${reportHTML(m.rep)}</div></div>`;
     return;
