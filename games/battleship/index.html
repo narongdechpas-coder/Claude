@@ -194,7 +194,7 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
     <p>วางกองเรือ 5 ลำของคุณให้ลับตา แล้วผลัดกันยิงขีปนาวุธใส่พิกัดของศัตรู ใครจมเรือของอีกฝ่ายได้ครบก่อนชนะ</p>
     <ol class="steps">
       <li>คลิกบนกระดานเพื่อวางเรือ กด R หรือคลิกขวาเพื่อหมุน (บนมือถือ แตะครั้งแรกดูตำแหน่ง แตะซ้ำเพื่อยืนยัน)</li>
-      <li>คลิกช่องบนกระดานศัตรูเพื่อยิง ลากเพื่อหมุนกล้อง เลื่อนล้อเมาส์เพื่อซูม</li>
+      <li>คลิกช่องบนกระดานศัตรูเพื่อยิง ยิงโดนได้ยิงต่อจนกว่าจะพลาด ลากเพื่อหมุนกล้อง เลื่อนล้อเมาส์เพื่อซูม</li>
       <li>ใช้ปุ่มลูกศรเลือกช่อง แล้วกด Enter เพื่อวางเรือหรือยิงได้เช่นกัน</li>
     </ol>
     <div class="legend"><span><i class="dot r"></i>หมุดแดง = โดน</span><span><i class="dot w"></i>ช่องขาวจาง = พลาด</span></div>
@@ -423,16 +423,16 @@ const foeReticle = makeReticle(0xff3a2a);
 /* ---------------- ships ---------------- */
 const MAT = {
   player: {
-    hull: new THREE.MeshStandardMaterial({ color: 0xaebdc8, metalness: 0.3, roughness: 0.45, emissive: 0x2c3a44, emissiveIntensity: 0.35 }),
-    deck: new THREE.MeshStandardMaterial({ color: 0x5f707c, metalness: 0.2, roughness: 0.65, emissive: 0x1a242c, emissiveIntensity: 0.35 }),
-    trim: new THREE.MeshStandardMaterial({ color: 0xd8e2e9, metalness: 0.3, roughness: 0.4, emissive: 0x34424c, emissiveIntensity: 0.35 }),
+    hull: new THREE.MeshStandardMaterial({ color: 0xa9b6bf, metalness: 0, roughness: 0.95 }),
+    deck: new THREE.MeshStandardMaterial({ color: 0x67757f, metalness: 0, roughness: 1 }),
+    trim: new THREE.MeshStandardMaterial({ color: 0xc9d2d8, metalness: 0, roughness: 0.95 }),
   },
   enemy: {
-    hull: new THREE.MeshStandardMaterial({ color: 0x4d3533, metalness: 0.55, roughness: 0.45 }),
-    deck: new THREE.MeshStandardMaterial({ color: 0x2a1e1d, metalness: 0.3, roughness: 0.75 }),
-    trim: new THREE.MeshStandardMaterial({ color: 0x86655c, metalness: 0.6, roughness: 0.4 }),
+    hull: new THREE.MeshStandardMaterial({ color: 0x5a3e3b, metalness: 0, roughness: 0.95 }),
+    deck: new THREE.MeshStandardMaterial({ color: 0x2e2120, metalness: 0, roughness: 1 }),
+    trim: new THREE.MeshStandardMaterial({ color: 0x8a6a61, metalness: 0, roughness: 0.95 }),
   },
-  boot: new THREE.MeshStandardMaterial({ color: 0x7a1d1a, roughness: 0.6 }),
+  boot: new THREE.MeshStandardMaterial({ color: 0x6e2220, metalness: 0, roughness: 1 }),
   stripe: new THREE.MeshBasicMaterial({ color: 0xf2e6b0 }),
   red: new THREE.MeshBasicMaterial({ color: 0xff3b30 }),
   green: new THREE.MeshBasicMaterial({ color: 0x3bff8a }),
@@ -1264,6 +1264,11 @@ async function playerShoot(r, c) {
   if (res.sunk) await sinkSequence('enemy', res.ship); else await wait(1.0);
   renderFleets();
   if (allSunk(S.enemy)) return gameOver(true);
+  if (res.hit) {
+    S.busy = false;
+    setStatus('you', 'ยิงต่อ!', `ยิงโดน ${cellName(r, c)} ได้ยิงต่ออีกนัด`);
+    return;
+  }
   const lost = await enemyTurn();
   if (lost) return;
   S.turn = 'player'; S.busy = false;
@@ -1274,6 +1279,8 @@ async function enemyTurn() {
   setStatus('foe', 'ศัตรู', 'ศัตรูกำลังเล็งเป้ามาที่กองเรือของเรา...');
   await setView('player', 1.3);
   Sound.ping();
+  for (let volley = 0; ; volley++) {
+  if (volley) { setStatus('foe', 'ศัตรูยิงต่อ', 'ศัตรูยิงโดน จึงได้ยิงต่ออีกนัด...'); await wait(0.3); }
   const [r, c] = aiPick();
   foeReticle.material.color.set(0xff3a2a); foeReticle.visible = true;
   const hops = S.diff === 'hard' ? 4 : 3;
@@ -1296,6 +1303,8 @@ async function enemyTurn() {
   if (res.sunk) await sinkSequence('player', res.ship); else await wait(1.1);
   renderFleets();
   if (allSunk(S.player)) { gameOver(false); return true; }
+  if (!res.hit) break;
+  }
   await setView('enemy', 1.1);
   return false;
 }
