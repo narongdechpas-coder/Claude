@@ -319,6 +319,38 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
 .turn.done{background:var(--ok-soft);color:var(--ok)}
 .nextbox{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 12px 12px 0;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
 .demo{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:.85rem;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:var(--muted)}
+/* back office: compact queue + detail */
+@media (min-width:901px){.bo{grid-template-columns:340px minmax(0,1fr)}}
+.dhead > *{min-width:0}
+.bo-aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;max-height:calc(100vh - 100px);overflow:hidden}
+@media (max-width:900px){.bo-aside{position:static;max-height:420px}}
+.bo-aside .qhead{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.bo-aside .input{min-height:38px;padding:7px 12px;font-size:.9rem}
+.qlist{overflow-y:auto;flex:1}
+.qrow{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:4px 10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 12px;cursor:pointer;font-size:.86rem}
+.qrow[hidden]{display:none}
+.qrow:hover{background:var(--sunk)}
+.qrow[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.qrow .dot{width:8px;height:8px;border-radius:50%;background:var(--c);grid-row:1 / 3}
+.qrow .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrow .am{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.qrow .sub{color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrow .age{font-size:.74rem;color:var(--muted);text-align:right;white-space:nowrap}
+.qrow .age.late{color:var(--bad);font-weight:600}
+.dhead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.dhead h3{font-size:1.15rem}
+.todo{display:flex;gap:8px;align-items:center;background:var(--sign-soft);color:var(--sign-ink);border-radius:10px;padding:8px 12px;font-size:.88rem}
+.todo.wait{background:var(--sunk);color:var(--muted)}
+.kv3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px;margin:0}
+@media (max-width:640px){.kv3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kv3 div{min-width:0}
+.kv3 dt{font-size:.74rem;color:var(--muted)}
+.kv3 dd{margin:0;font-size:.88rem;font-weight:500;overflow-wrap:anywhere}
+.dchips{display:flex;flex-wrap:wrap;gap:6px}
+.dchip{font-size:.8rem;border-radius:999px;padding:3px 10px;background:var(--ok-soft);color:var(--ok)}
+.dchip.miss{background:var(--bad-soft);color:var(--bad)}
+details.fold{border-top:1px solid var(--line);padding-top:10px}
+details.fold > summary{font-size:.9rem;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -928,7 +960,7 @@ function renderBO() {
   return `<main class="wrap-wide">${tabs}
     <div class="row between" style="margin-bottom:14px">
       <div><h2>คำร้องค่าขาดประโยชน์</h2><p class="small muted">${S.cases.length} คำร้อง · จ่ายแล้วรวม ${baht(totalPaid)}</p></div>
-      <details class="card" style="padding:12px 16px;gap:10px;max-width:100%"><summary>อัตราและอำนาจอนุมัติ</summary>
+      <details class="card" style="padding:8px 14px;gap:10px;max-width:100%;box-shadow:none"><summary class="small">อัตราและอำนาจอนุมัติ</summary>
         <div style="overflow-x:auto"><table class="tbl"><tr><th>ประเภทรถ</th><th class="r">บาท/วัน</th></tr>${Object.values(RATES).map(r => `<tr><td>${esc(r.label)}</td><td class="r num">${r.rate.toLocaleString('th-TH')}</td></tr>`).join('')}</table></div>
         <div style="overflow-x:auto"><table class="tbl"><tr><th>ยอดอนุมัติ</th><th>ต้องอนุมัติถึง</th></tr>
           <tr><td class="num">ไม่เกิน 5,000</td><td>Step 1 · ${TIERS[0].role}</td></tr>
@@ -938,46 +970,59 @@ function renderBO() {
       </details>
     </div>
     <div class="bo">
-      <aside class="stack">
-        <div class="filters" role="group" aria-label="ตัวกรอง">${FILTERS.map((x, i) => `<button data-a="boFilter" data-v="${x[0]}" aria-pressed="${UI.boFilter === x[0]}">${x[1]} <span class="num">${counts[i]}</span></button>`).join('')}</div>
-        <div class="q">${list.length ? list.map(c => { const cl = claimOf(c); return `
-          <button class="qi" data-a="boOpen" data-id="${c.id}" aria-current="${cur && cur.id === c.id}">
-            ${plateHTML(cl.plate, cl.province, true)}
-            <span><span class="qn">${esc(cl.owner)}</span><br><span class="small muted mono">${c.id}</span></span>
-            ${pill(c.status, 'bo')}
-            <span class="qm"><span>${esc(RATES[c.type].label)}</span><span class="num">${c.approvedAmount ? baht(c.approvedAmount) : 'ขอ ' + baht(reqAmount(c))}</span></span>
-          </button>`; }).join('') : `<p class="muted small" style="padding:12px">ไม่มีคำร้องในกลุ่มนี้</p>`}</div>
+      <aside class="bo-aside">
+        <div class="qhead">
+          <input class="input" id="bo-q" type="search" placeholder="ค้นหาชื่อ เลขคำร้อง ทะเบียน" value="${esc(UI.boQ || '')}" aria-label="ค้นหาคำร้อง">
+          <div class="filters" role="group" aria-label="ตัวกรอง">${FILTERS.map((x, i) => `<button data-a="boFilter" data-v="${x[0]}" aria-pressed="${UI.boFilter === x[0]}">${x[1]} <span class="num">${counts[i]}</span></button>`).join('')}</div>
+        </div>
+        <div class="qlist">${list.length ? list.map(c => qRow(c, cur)).join('') : `<p class="muted small" style="padding:12px">ไม่มีคำร้องในกลุ่มนี้</p>`}</div>
       </aside>
       <section class="stack">${cur && list.includes(cur) ? boDetail(cur) : cur ? boDetail(cur) : `<div class="card"><p class="muted">เลือกคำร้องจากรายการ</p></div>`}</section>
     </div></main>`;
 }
 
+const PILLC = { info:'var(--info)', warn:'var(--warn)', sign:'var(--sign)', ok:'var(--ok)', bad:'var(--bad)' };
+const ageOf = c => (Date.now() - Date.parse(c.statusAt || c.history[c.history.length - 1].at)) / 864e5;
+const ageTxt = d => d < 1 ? 'วันนี้' : Math.floor(d) + ' วัน';
+// สิ่งที่เจ้าหน้าที่ต้องทำต่อ (null = รอฝั่งอื่น)
+function boTodo(c) {
+  return { SUBMITTED:'ตรวจเอกสาร', UNDER_REVIEW:'พิจารณายอดเงิน', PENDING_APPROVAL:`อนุมัติ Step ${c.approvals.length + 1}`, ACCEPTED:'สั่งโอนเงิน' }[c.status] || null;
+}
+function qRow(c, cur) {
+  const cl = claimOf(c), a = ageOf(c), late = SLA[c.status] && a > SLA[c.status], todo = boTodo(c);
+  const srch = `${cl.owner} ${c.id} ${cl.plate} ${c.claimNo}`.toLowerCase();
+  return `<button class="qrow" data-a="boOpen" data-id="${c.id}" data-s="${esc(srch)}" aria-current="${cur && cur.id === c.id}" ${UI.boQ && !srch.includes(UI.boQ.toLowerCase()) ? 'hidden' : ''}>
+    <span class="dot" style="--c:${PILLC[ST[c.status].pill]}"></span>
+    <span class="nm">${esc(cl.owner)}</span>
+    <span class="am">${baht(c.approvedAmount ?? reqAmount(c))}</span>
+    <span class="sub">${c.id.slice(-4)} · ${esc(cl.plate)} · ${todo ? `<b style="color:var(--ink)">${todo}</b>` : esc(ST[c.status].bo)}</span>
+    <span class="age ${late ? 'late' : ''}">${ageTxt(a)}${late ? ' · เกิน SLA' : ''}</span>
+  </button>`;
+}
 function boDetail(c) {
-  const cl = claimOf(c);
+  const cl = claimOf(c), g = garageOf(c), todo = boTodo(c), a = ageOf(c), late = SLA[c.status] && a > SLA[c.status];
+  const kv = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+  const by = h => h.by === 'claimant' ? 'ผู้เรียกร้อง' : h.by === 'company' ? 'บริษัท' : 'ระบบ';
   return `
-  <div class="card">
-    <div class="row between"><div class="row">${plateHTML(cl.plate, cl.province)}<div><h3>${esc(cl.owner)}</h3><p class="small muted mono">${c.id} · ${esc(c.claimNo)}</p></div></div>${pill(c.status, 'bo')}</div>
-    <div class="grid2">
-      <dl class="kv">
-        <dt>รถ</dt><dd>${esc(cl.model)}</dd>
-        <dt>ประเภท</dt><dd>${esc(RATES[c.type].label)}</dd>
-        <dt>เกิดเหตุ</dt><dd>${fmtD(cl.accident)}</dd>
-        <dt>ผู้เอาประกัน (ผิด)</dt><dd>${esc(cl.insuredPlate)}</dd>
-        <dt>ความเสียหาย</dt><dd>${SEV[cl.sev].label} <span class="muted small">(มาตรฐาน ${SEV[cl.sev].std} วัน)</span></dd>
-        <dt>อู่</dt><dd>${esc(garageOf(c).name)} ${gBadge(garageOf(c))}</dd>
-      </dl>
-      <dl class="kv">
-        <dt>เข้าซ่อม</dt><dd>${fmtD(c.repairIn)}</dd>
-        <dt>รับรถคืน</dt><dd>${c.repairOut ? fmtD(c.repairOut) : 'ยังไม่เสร็จ'}</dd>
-        <dt>วันที่ขอ</dt><dd class="num">${reqDays(c)} วัน = ${baht(reqAmount(c))}</dd>
-        <dt>บัญชี</dt><dd>${esc(c.bank.name)} ${esc(c.bank.acct)}<br><span class="small muted">${esc(c.holder)}</span></dd>
-      </dl>
+  <div class="card" style="gap:12px">
+    <div class="dhead">
+      <div><h3>${esc(cl.owner)}</h3><p class="small muted"><span class="mono">${c.id}</span> · ${esc(cl.plate)} ${esc(cl.province)} · <span class="mono">${esc(c.claimNo)}</span></p></div>
+      <div class="row">${pill(c.status, 'bo')}<button class="btn ghost sm" data-a="openCase" data-id="${c.id}" title="โหมดทดลอง">มุมมองผู้เรียกร้อง →</button></div>
     </div>
+    <div class="todo ${todo ? '' : 'wait'}">${todo ? `<b>ต้องทำ:</b> ${todo}` : c.status === 'PAID' ? '<b>เสร็จสิ้น:</b> จ่ายเงินและออกหนังสือยืนยันแล้ว' : `<b>รอผู้เรียกร้อง:</b> ${esc(ST[c.status].bo)}`}<span style="margin-left:auto" class="${late ? 'bad' : ''}">${late ? `<b style="color:var(--bad)">เกิน SLA</b> · ` : ''}อยู่ในสถานะนี้ ${ageTxt(a)}</span></div>
+    <dl class="kv3">
+      ${kv('รถ', `${esc(cl.model)}<br><span class="muted small">${esc(RATES[c.type].label)}</span>`)}
+      ${kv('ความเสียหาย', `${SEV[cl.sev].label} <span class="muted small">(มาตรฐาน ${SEV[cl.sev].std} วัน)</span>`)}
+      ${kv('อู่', `${esc(g.name)} ${gBadge(g)}`)}
+      ${kv('ช่วงซ่อม', `${fmtD(c.repairIn)} – ${c.repairOut ? fmtD(c.repairOut) : 'ยังไม่เสร็จ'}`)}
+      ${kv('ยอดที่ขอ', `<span class="num">${reqDays(c)} วัน = ${baht(reqAmount(c))}</span>`)}
+      ${kv('บัญชีรับเงิน', `${esc(c.bank.name)} <span class="num">${esc(c.bank.acct)}</span><br><span class="muted small">${esc(c.holder)}</span>`)}
+    </dl>
+    <div class="dchips" aria-label="เอกสาร">${DOCS.map(d => `<span class="dchip ${c.docs[d.id] ? '' : 'miss'}" title="${esc(c.docs[d.id] || 'ยังไม่มี')}">${c.docs[d.id] ? '✓' : '✕'} ${esc(d.label)}</span>`).join('')}</div>
   </div>
-  <div class="demo"><span>โหมดทดลอง: ดูว่าคู่กรณีเห็นอะไรในคำร้องนี้</span><button class="btn ghost sm" data-a="openCase" data-id="${c.id}">เปิดมุมมองผู้เรียกร้อง →</button></div>
   ${boAction(c)}
-  <div class="card"><h3>เอกสาร</h3><div class="stack">${DOCS.map(d => `<div class="doc ${c.docs[d.id] ? 'has' : ''}"><span class="dico">${c.docs[d.id] ? '✓' : '–'}</span><div class="dtxt"><div class="dname">${esc(d.label)}</div><div class="small muted">${esc(c.docs[d.id] || 'ยังไม่มี')}</div></div></div>`).join('')}</div></div>
-  <div class="card"><h3>ประวัติการดำเนินการ</h3><ul class="tl">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)}<br><span class="by">${h.by === 'claimant' ? 'ผู้เรียกร้อง' : h.by === 'company' ? 'บริษัท' : 'ระบบ'}</span></span></li>`).join('')}</ul></div>`;
+  <div class="card" style="gap:8px"><details class="fold" style="border:0;padding:0"><summary>ประวัติการดำเนินการ (${c.history.length}) · ล่าสุด: ${esc(c.history[c.history.length - 1].text)}</summary>
+    <ul class="tl" style="margin-top:10px">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)} <span class="by">· ${by(h)}</span></span></li>`).join('')}</ul></details></div>`;
 }
 
 function chainHTML(c) {
@@ -1036,7 +1081,7 @@ function boAction(c) {
       <dl class="kv"><dt>ผู้รับเงิน</dt><dd>${esc(c.holder)}</dd><dt>บัญชี</dt><dd>${esc(c.bank.name)} ${esc(c.bank.acct)}</dd><dt>ยอดเงิน</dt><dd class="num">${baht(c.approvedAmount)}</dd><dt>ลงนามตอบรับ</dt><dd>${c.signedAt ? fmtDT(c.signedAt) : '–'}</dd></dl>
       ${c.status === 'ACCEPTED' ? `<div class="alert ok"><span class="ico">✓</span><span>ชื่อบัญชีตรงกับเจ้าของรถตามทะเบียน</span></div><button class="btn primary" data-a="boPay" style="align-self:flex-start">โอนเงินผ่าน API ธนาคาร (จำลอง)</button>` : ''}
       ${c.status === 'PAYMENT_FAILED' ? `<div class="alert warn"><span class="ico">!</span><span>รอผู้เรียกร้องแก้ไขบัญชี</span></div>` : ''}
-      ${lg ? `<div class="console" aria-label="บันทึกการเรียก API">${esc(lg)}</div>` : ''}
+      ${lg ? `<details class="fold" ${UI.bankLog[c.id] ? 'open' : ''}><summary>บันทึกการเรียก API ธนาคาร</summary><div class="console" style="margin-top:8px" aria-label="บันทึกการเรียก API">${esc(lg)}</div></details>` : ''}
       ${c.status === 'PAID' ? `<div class="row"><button class="btn ghost sm" data-a="docLetter" data-id="${c.id}">หนังสือยืนยันการจ่ายเงิน</button><button class="btn ghost sm" data-a="docConsent" data-id="${c.id}">หนังสือยินยอม</button></div>` : ''}</div>`;
   }
   return `<div class="card"><h3>รอผู้เรียกร้อง</h3><p class="muted">${esc(ST[c.status].bo)} ไม่มีงานที่ต้องทำในตอนนี้</p></div>`;
@@ -1592,6 +1637,9 @@ document.addEventListener('input', e => {
       const c = curBO(), amt = (Number(val) || 0) * RATES[c.type].rate, need = requiredStep(amt);
       $('#boEst').innerHTML = `<span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span>`;
     }
+  } else if (el.id === 'bo-q') {
+    UI.boQ = val; const q = val.toLowerCase();
+    document.querySelectorAll('.qrow').forEach(r => { r.hidden = !r.dataset.s.includes(q); });
   } else if (el.dataset.calc) {
     UI.calc[el.dataset.calc] = val;
     const r = RATES[UI.calc.type].rate, d = Math.max(0, Number(UI.calc.days) || 0);
