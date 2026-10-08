@@ -297,6 +297,18 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
 .fb text{fill:var(--accent-ink);font-family:var(--f-body);font-size:11px;font-weight:700}
 .cplist{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:.9rem}
 .cptag{font-family:var(--f-mono);font-size:.78rem;background:var(--sign-soft);color:var(--sign-ink);border-radius:6px;padding:1px 6px;font-weight:500}
+/* desktop two-column (claimant) — mobile keeps the single column via display:contents + order */
+.split{display:contents}
+.split > .ca,.split > .cb{display:contents}
+.desk-only{display:none!important}
+@media (min-width:900px){
+  .wrap.wide{max-width:1080px}
+  .split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+  .split > .ca,.split > .cb{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .split > .cb.sticky{position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px)}
+  .desk-only{display:flex!important}
+  .hero{padding-top:28px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -544,17 +556,17 @@ function render() {
 
 /* =================== CLAIMANT =================== */
 function renderClaimant() {
-  if (UI.page === 'wizard') return `<main class="wrap">${wizard()}</main>`;
+  if (UI.page === 'wizard') return `<main class="wrap wide">${wizard()}</main>`;
   if (UI.page === 'done') return `<main class="wrap">${done()}</main>`;
   if (UI.page === 'track') return `<main class="wrap">${trackLookup()}</main>`;
-  if (UI.page === 'case' && getCase(UI.caseId)) return `<main class="wrap">${caseView(getCase(UI.caseId))}</main>`;
-  return `<main class="wrap">${home()}</main>`;
+  if (UI.page === 'case' && getCase(UI.caseId)) return `<main class="wrap wide">${caseView(getCase(UI.caseId))}</main>`;
+  return `<main class="wrap wide">${home()}</main>`;
 }
 
 function home() {
   const r = RATES[UI.calc.type].rate, d = Math.max(0, Number(UI.calc.days) || 0);
-  return `
-  <section class="hero">
+  return `<div class="split"><div class="ca">
+  <section class="hero" style="order:1">
     <p class="eyebrow">สำหรับคู่กรณีฝ่ายถูก</p>
     <h1>รถถูกชนจนต้องจอดซ่อม? ขอค่าขาดประโยชน์ได้ที่นี่</h1>
     <p class="lede">กรอกข้อมูล 4 ขั้น ใช้เวลาประมาณ 5 นาที แล้วติดตามผลจนเงินเข้าบัญชีได้จากมือถือ ไม่ต้องเดินทางมาที่บริษัท</p>
@@ -563,8 +575,17 @@ function home() {
       <button class="btn ghost" data-a="goTrack">ติดตามคำร้องเดิม</button>
     </div>
   </section>
-
-  <section class="card">
+  <section class="card" style="order:3">
+    <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
+    <div class="needs">
+      <div><b>เลขเคลม</b>อยู่บนใบที่พนักงานสำรวจภัยให้ ณ จุดเกิดเหตุ</div>
+      <div><b>บัตรประชาชน + ทะเบียนรถ</b>ถ่ายรูปด้วยมือถือได้</div>
+      <div><b>ใบรับรถเข้าซ่อม</b>ขอจากอู่หรือศูนย์บริการ</div>
+      <div><b>หน้าสมุดบัญชี</b>ชื่อบัญชีตรงกับเจ้าของรถ</div>
+    </div>
+  </section>
+  </div><div class="cb">
+  <section class="card" style="order:2">
     <h3>ลองคำนวณยอดเบื้องต้น</h3>
     <div class="grid2">
       <div class="field"><label for="calcType">ประเภทรถ</label>
@@ -580,17 +601,7 @@ function home() {
     <p class="small muted">เป็นการประมาณตามอัตราต่อวันของประเภทรถ ยอดจริงขึ้นกับจำนวนวันซ่อมที่สมเหตุสมผลและการพิจารณาของบริษัท</p>
   </section>
 
-  <section class="card">
-    <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
-    <div class="needs">
-      <div><b>เลขเคลม</b>อยู่บนใบที่พนักงานสำรวจภัยให้ ณ จุดเกิดเหตุ</div>
-      <div><b>บัตรประชาชน + ทะเบียนรถ</b>ถ่ายรูปด้วยมือถือได้</div>
-      <div><b>ใบรับรถเข้าซ่อม</b>ขอจากอู่หรือศูนย์บริการ</div>
-      <div><b>หน้าสมุดบัญชี</b>ชื่อบัญชีตรงกับเจ้าของรถ</div>
-    </div>
-  </section>
-
-  <section class="card">
+  <section class="card" style="order:4">
     <h3>หลังจากยื่นแล้ว</h3>
     <ol class="howlist">
       <li><div><b>เจ้าหน้าที่ตรวจเอกสาร</b><br><span class="small muted">ภายใน 2 วันทำการ ถ้าขาดอะไรจะแจ้งทาง SMS</span></div></li>
@@ -598,7 +609,8 @@ function home() {
       <li><div><b>คุณตอบรับด้วยรหัส OTP</b><br><span class="small muted">ถ้าไม่เห็นด้วย ขอทบทวนได้ 1 ครั้ง</span></div></li>
       <li><div><b>เงินเข้าบัญชีพร้อมหนังสือยืนยัน</b><br><span class="small muted">ดาวน์โหลดเก็บไว้เป็นหลักฐานได้</span></div></li>
     </ol>
-  </section>`;
+  </section>
+  </div></div>`;
 }
 
 const WSTEPS = ['ตรวจสิทธิ์', 'ยืนยันตัวตน', 'ข้อมูลการซ่อม', 'เอกสาร', 'ตรวจทาน'];
@@ -608,7 +620,29 @@ function wizard() {
   const err = w.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${w.err}</span></div>` : '';
   const back = `<button class="btn ghost" data-a="${w.step === 0 ? 'home' : 'wizBack'}">${w.step === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}</button>`;
   const body = [wStep0, wStep1, wStep2, wStep3, wStep4][w.step]();
-  return `${stepper}<section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}`;
+  return `<div class="split"><div class="ca">${stepper}<section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}</div><div class="cb sticky desk-only">${wizSide()}</div></div>`;
+}
+function wizSide() {
+  const w = UI.wiz, f = w.f, c = w.claim;
+  const g = f.garage === 'other' ? (f.garageName ? `${esc(f.garageName)}${f.garageType ? ' (' + GTYPE[f.garageType].label + ')' : ''}` : '') : f.garage ? esc(GARAGES.find(x => x.id === f.garage).name) : '';
+  const v = x => x || '<span class="muted">–</span>';
+  return `<section class="card">
+      <h3>สรุปคำร้องของคุณ</h3>
+      ${c ? `<div class="row between">${plateHTML(c.plate, c.province, true)}<span class="small mono muted">${esc(c.claimNo)}</span></div>` : '<p class="small muted">ตรวจสิทธิ์ก่อน แล้วข้อมูลจะแสดงที่นี่</p>'}
+      <dl class="kv">
+        <dt>เจ้าของรถ</dt><dd>${v(c && esc(c.owner))}</dd>
+        <dt>เบอร์มือถือ</dt><dd class="num">${v(w.step > 1 && esc(f.phone))}</dd>
+        <dt>อู่</dt><dd>${v(g)}</dd>
+        <dt>ช่วงซ่อม</dt><dd>${v(f.repairIn && `${fmtD(f.repairIn)} – ${f.repairOut ? fmtD(f.repairOut) : '…'}`)}</dd>
+        <dt>บัญชีรับเงิน</dt><dd>${v(f.bank && f.acct && `${esc(f.bank)} ${maskAcct(f.acct)}`)}</dd>
+        <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length ? Object.keys(w.docs).length + ' / ' + DOCS.length + ' ไฟล์' : v('')}</dd>
+      </dl>
+      ${c && f.repairIn ? `<div class="est">${estBox(c.type, f.repairIn, f.repairOut)}</div>` : ''}
+    </section>
+    <section class="flat small">
+      <b>ต้องการความช่วยเหลือ?</b>
+      <span class="muted">โทร 1234 กด 3 (จำลอง) ทุกวัน 8:00–20:00 น. · ข้อมูลของคุณใช้เพื่อพิจารณาคำร้องนี้เท่านั้น</span>
+    </section>`;
 }
 function wStep0() {
   const w = UI.wiz, c = w.claim;
@@ -767,17 +801,20 @@ function caseView(c) {
     <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut || c.expectedOut, !c.repairOut && !c.expectedOut)}</div></section>`;
   return `
   <div class="row between"><button class="linkbtn" data-a="home">← หน้าแรก</button><span class="small muted mono">${esc(c.claimNo)}</span></div>
-  <section class="card">
+  <div class="split"><div class="ca">
+  <section class="card" style="order:1">
     <div class="row between">${plateHTML(cl.plate, cl.province)}${pill(c.status, 'me')}</div>
     <div><p class="small muted">เลขคำร้อง</p><p class="caseno" style="font-size:1.15rem">${esc(c.id)}</p></div>
     <p>${esc(st.msg)}</p>
   </section>
-  ${claimantAction(c)}
-  <section class="card"><h3>ความคืบหน้า</h3>${prog}</section>
-  ${amountCard}
-  <section class="card"><h3>ประวัติ</h3>
+  ${claimantAction(c).replace('<section class="card">', '<section class="card" style="order:2">')}
+  ${amountCard.replace('<section class="card">', '<section class="card" style="order:4">')}
+  </div><div class="cb">
+  <section class="card" style="order:3"><h3>ความคืบหน้า</h3>${prog}</section>
+  <section class="card" style="order:5"><h3>ประวัติ</h3>
     <ul class="tl">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)}<br><span class="by">${h.by === 'claimant' ? 'คุณ' : h.by === 'company' ? 'บริษัท' : 'ระบบ'}</span></span></li>`).join('')}</ul>
-  </section>`;
+  </section>
+  </div></div>`;
 }
 
 function offerBreakdown(c) {
