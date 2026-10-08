@@ -351,6 +351,22 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
 .dchip.miss{background:var(--bad-soft);color:var(--bad)}
 details.fold{border-top:1px solid var(--line);padding-top:10px}
 details.fold > summary{font-size:.9rem;color:var(--muted)}
+.rgen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:700px){.rgen{grid-template-columns:1fr}}
+.rgen > div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.rgen > div b{flex-basis:100%;font-size:.92rem}
+.rgen .input{min-height:40px;padding:7px 12px;width:auto;flex:1;min-width:150px}
+.modal.wide{max-width:900px}
+.paper .rk{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.paper .rk div{border:1px solid #DDD;border-radius:6px;padding:8px 10px}
+.paper .rk span{display:block;font-size:.72rem;color:#666}
+.paper .rk b{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.paper h4{margin:6px 0 0;font-size:.95rem;font-family:var(--f-display)}
+.paper .rt{width:100%;border-collapse:collapse;font-size:.8rem}
+.paper .rt th{text-align:left;background:#F2F2F2;padding:5px 6px;font-weight:600;border-bottom:1px solid #CCC}
+.paper .rt td{padding:4px 6px;border-bottom:1px dotted #CCC;width:auto;color:#1A1A1A}
+.paper .rt td.r,.paper .rt th.r{text-align:right;font-variant-numeric:tabular-nums}
+.paper .empty{color:#777;font-size:.8rem}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -1230,6 +1246,7 @@ function renderReport() {
   const kpi = (l, v, d) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;
   const per = { '30':'30 วันล่าสุด', '90':'90 วันล่าสุด', all:'ทั้งหมด' }[UI.rp];
   return `
+  ${repGenUI()}
   <div class="rtop"><div><h2>รายงานผู้จัดการฝ่ายสินไหม</h2><p class="small muted">ข้อมูลจำลอง ณ ${fmtDT(new Date().toISOString())}</p></div>
     <div class="filters" role="group" aria-label="ช่วงเวลา">${[['30', '30 วัน'], ['90', '90 วัน'], ['all', 'ทั้งหมด']].map(([v, l]) => `<button data-a="rp" data-v="${v}" aria-pressed="${UI.rp === v}">${l}</button>`).join('')}</div></div>
   <div class="kpis" style="margin-bottom:16px">
@@ -1279,6 +1296,96 @@ function renderReport() {
       </div></details>
     </section>
   </div>`;
+}
+
+/* =================== DAILY / MONTHLY REPORTS =================== */
+const localISO = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const repMonths = () => [0, 1, 2, 3].map(k => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return localISO(d).slice(0, 7); });
+const monthLabel = ym => new Date(ym + '-01T00:00:00').toLocaleDateString('th-TH', { month:'long', year:'numeric' });
+function repGenUI() {
+  UI.repDate = UI.repDate || localISO(new Date()); UI.repMonth = UI.repMonth || repMonths()[0];
+  return `<div class="rgen">
+    <div><b>รายงานประจำวัน</b><input class="input" type="date" id="rep-date" data-r="repDate" value="${UI.repDate}" max="${localISO(new Date())}" aria-label="วันที่ของรายงาน"><button class="btn primary sm" data-a="repOpen" data-v="daily">ออกรายงาน</button></div>
+    <div><b>รายงานประจำเดือน</b><select class="input" id="rep-month" data-r="repMonth" aria-label="เดือนของรายงาน">${repMonths().map(m => `<option value="${m}" ${m === UI.repMonth ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}</select><button class="btn primary sm" data-a="repOpen" data-v="monthly">ออกรายงาน</button></div>
+  </div>`;
+}
+// เหตุการณ์จากประวัติเคส จัดหมวดเพื่อนับในรายงาน
+const EVT = [['submit', /^ยื่นคำร้อง/], ['docs', /^ตรวจเอกสารครบ/], ['needinfo', /^ขอเอกสารเพิ่ม/], ['propose', /^เสนอยอด/], ['approve', /^Step \d อนุมัติ/], ['return', /^ตีกลับ/],
+  ['sign', /^ลงนามตอบรับ/], ['appeal', /^ขอทบทวน/], ['paid', /^โอนเงินสำเร็จ/], ['payfail', /^โอนเงินไม่สำเร็จ/]];
+const evtKind = t => (EVT.find(e => e[1].test(t)) || ['other'])[0];
+function eventsIn(from, to) {
+  const out = [];
+  S.cases.forEach(c => c.history.forEach(h => { const t = Date.parse(h.at); if (t >= from && t < to) out.push({ c, h, t, k: evtKind(h.text) }); }));
+  return out.sort((a, b) => a.t - b.t);
+}
+const tm = t => new Date(t).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+const nameOf = c => claimOf(c).owner;
+function buildReport(kind) {
+  const now = Date.now();
+  let from, to, title, sub, fname;
+  if (kind === 'daily') { from = Date.parse(UI.repDate + 'T00:00:00'); to = from + 864e5; title = 'รายงานประจำวัน'; sub = new Date(from).toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); fname = `lou-daily-${UI.repDate}.csv`; }
+  else { const d = new Date(UI.repMonth + '-01T00:00:00'); from = d.getTime(); d.setMonth(d.getMonth() + 1); to = d.getTime(); title = 'รายงานประจำเดือน'; sub = monthLabel(UI.repMonth); fname = `lou-monthly-${UI.repMonth}.csv`; }
+  const end = Math.min(to, now);
+  const ev = eventsIn(from, to), cnt = k => ev.filter(e => e.k === k).length;
+  const paidC = S.cases.filter(c => c.status === 'PAID' && Date.parse(c.payment.at) >= from && Date.parse(c.payment.at) < to);
+  const openAtEnd = S.cases.filter(c => subAt(c) < end && !(c.status === 'PAID' && Date.parse(c.payment.at) < end));
+  const sections = [];
+  const kpis = [['คำร้องใหม่', cnt('submit')], ['ตรวจเอกสารผ่าน', cnt('docs')], ['ขอเอกสารเพิ่ม', cnt('needinfo')], ['เสนอยอด', cnt('propose')], ['อนุมัติ (ทุก Step)', cnt('approve')],
+    ['คู่กรณีตอบรับ', cnt('sign')], ['ขอทบทวน', cnt('appeal')], ['จ่ายเงิน (เคส)', paidC.length], ['ยอดจ่าย', baht(sum(paidC, c => c.approvedAmount))], ['โอนไม่สำเร็จ', cnt('payfail')],
+    [`งานค้าง ณ ${kind === 'daily' ? 'สิ้นวัน' : 'สิ้นเดือน'}`, openAtEnd.length], ['ยอดที่คาดว่าต้องจ่าย', baht(sum(openAtEnd, c => c.approvedAmount ?? reqAmount(c)))]];
+  sections.push({ h:'สรุป', kpis });
+  const payRows = paidC.sort((a, b) => Date.parse(a.payment.at) - Date.parse(b.payment.at)).map(c => [kind === 'daily' ? tm(Date.parse(c.payment.at)) : fmtD(c.payment.at), c.id, nameOf(c), claimOf(c).plate, garageOf(c).name, GTYPE[garageOf(c).type].label, c.approvedDays, c.approvedAmount, c.payment.ref]);
+  if (kind === 'daily') {
+    const overdue = S.cases.filter(c => c.status !== 'PAID' && SLA[c.status] && ageOf(c) > SLA[c.status]);
+    sections.push({ h:'การจ่ายเงินวันนี้', cols:['เวลา','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows:payRows });
+    sections.push({ h:'รายการเคลื่อนไหวทั้งวัน', cols:['เวลา','คำร้อง','ชื่อ','เหตุการณ์','โดย'], rows: ev.map(e => [tm(e.t), e.c.id, nameOf(e.c), e.h.text, e.h.by === 'claimant' ? 'ผู้เรียกร้อง' : e.h.by === 'company' ? 'บริษัท' : 'ระบบ']) });
+    if (UI.repDate === localISO(new Date())) sections.push({ h:'งานเกิน SLA ตอนนี้', cols:['คำร้อง','ชื่อ','สถานะ','ค้างมา (วัน)','SLA (วัน)'], num:[3, 4], rows: overdue.map(c => [c.id, nameOf(c), ST[c.status].bo, Math.floor(ageOf(c)), SLA[c.status]]) });
+  } else {
+    const subM = S.cases.filter(c => subAt(c) >= from && subAt(c) < to);
+    const dec = S.cases.filter(c => c.proposedAt && Date.parse(c.proposedAt) >= from && Date.parse(c.proposedAt) < to);
+    const reqT = sum(dec, c => reqAmount(c)), apT = sum(dec, c => c.approvedAmount);
+    kpis.push(['ยอดขอ (เคสที่เสนอยอดในเดือน)', baht(reqT)], ['ยอดอนุมัติ', baht(apT)], ['ปรับลด', reqT ? ((reqT - apT) / reqT * 100).toFixed(1) + '%' : '–'],
+      ['ยื่น → ได้เงิน เฉลี่ย', paidC.length ? avg(paidC, c => (Date.parse(c.payment.at) - subAt(c)) / 864e5).toFixed(1) + ' วัน' : '–']);
+    // รายวันในเดือน
+    const days = []; for (let t = from; t < to && t <= now; t += 864e5) days.push(t);
+    sections.push({ h:'แยกรายวัน', cols:['วันที่','คำร้องใหม่','จ่าย (เคส)','ยอดจ่าย (บาท)'], num:[1, 2, 3], rows: days.map(t => { const e = t + 864e5, p = paidC.filter(c => Date.parse(c.payment.at) >= t && Date.parse(c.payment.at) < e);
+      return [fmtD(localISO(new Date(t))), subM.filter(c => subAt(c) >= t && subAt(c) < e).length, p.length, sum(p, c => c.approvedAmount)]; }).filter(r => r[1] || r[2]) });
+    sections.push({ h:'แยกตามประเภทรถ (เคสที่จ่ายในเดือน)', cols:['ประเภทรถ','เคส','วันเฉลี่ย','ยอดรวม (บาท)'], num:[1, 2, 3], rows: Object.entries(RATES).map(([k, v]) => { const l = paidC.filter(c => c.type === k); return [v.label, l.length, l.length ? avg(l, c => c.approvedDays).toFixed(1) : '–', sum(l, c => c.approvedAmount)]; }) });
+    const rr = repairRows(paidC);
+    sections.push({ h:'อู่ห้าง เทียบ อู่นอก (เคสที่จ่ายในเดือน)', cols:['ประเภทอู่','เคส','วันซ่อมเฉลี่ย','RTI','ตรงนัด','ค่าขาดประโยชน์ (บาท)','ส่วนเกินจากความล่าช้า (บาท)'], num:[1, 2, 3, 4, 5, 6],
+      rows: Object.keys(GTYPE).map(tp => { const l = rr.filter(x => x.g.type === tp), g = garageScore(l); return [GTYPE[tp].long, g.n, g.n ? g.days.toFixed(1) : '–', g.n ? g.rti.toFixed(2) : '–', g.n ? Math.round(g.on * 100) + '%' : '–', Math.round(sum(l, x => x.lou)), Math.round(g.excess)]; }) });
+    sections.push({ h:'เหตุผลการปรับลด', cols:['เหตุผล','เคส','ยอดที่ลด (บาท)'], num:[1, 2], rows: Object.keys(REASONS).map(k => { const l = dec.filter(c => c.reasonCode === k); return [REASONS[k], l.length, sum(l, c => reqAmount(c) - c.approvedAmount)]; }).filter(r => r[1]) });
+    sections.push({ h:'รายการจ่ายเงินในเดือน', cols:['วันที่จ่าย','คำร้อง','ผู้รับเงิน','ทะเบียน','อู่','ประเภทอู่','วัน','ยอด (บาท)','เลขอ้างอิง'], num:[6, 7], rows: payRows });
+  }
+  return { kind, title, sub, fname, sections, at: new Date().toISOString() };
+}
+function reportHTML(r) {
+  const cell = (v, i, num) => `<td class="${num && num.includes(i) ? 'r' : ''}">${typeof v === 'number' && num && num.includes(i) ? v.toLocaleString('th-TH') : esc(v)}</td>`;
+  return `<div class="paper">
+    <div class="ph"><b>${COMPANY}</b><span>ฝ่ายสินไหม · ค่าขาดประโยชน์</span></div>
+    <h3>${r.title}</h3><p style="text-align:center;margin-top:-6px">${esc(r.sub)}</p>
+    ${r.sections.map(sec => sec.kpis ? `<h4>${sec.h}</h4><div class="rk">${sec.kpis.map(([l, v]) => `<div><span>${esc(l)}</span><b>${typeof v === 'number' ? v.toLocaleString('th-TH') : esc(v)}</b></div>`).join('')}</div>`
+      : `<h4>${sec.h} <span style="font-weight:400;color:#777;font-size:.8rem">(${sec.rows.length})</span></h4>${sec.rows.length ? `<div style="overflow-x:auto"><table class="rt"><tr>${sec.cols.map((c, i) => `<th class="${sec.num && sec.num.includes(i) ? 'r' : ''}">${c}</th>`).join('')}</tr>${sec.rows.map(row => `<tr>${row.map((v, i) => cell(v, i, sec.num)).join('')}</tr>`).join('')}</table></div>` : '<p class="empty">ไม่มีรายการ</p>'}`).join('')}
+    <p style="font-size:.72rem;color:#777">ออกรายงานเมื่อ ${fmtDT(r.at)} · ข้อมูลจำลอง</p></div>`;
+}
+function reportCSV(r, sep) {
+  const q = v => { const t = String(v ?? ''); return sep === ',' && /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t.replace(/\t|\n/g, ' '); };
+  const L = [[r.title, r.sub].map(q).join(sep), ''];
+  r.sections.forEach(sec => {
+    L.push(q(sec.h));
+    if (sec.kpis) sec.kpis.forEach(([k, v]) => L.push([k, v].map(q).join(sep)));
+    else { L.push(sec.cols.map(q).join(sep)); sec.rows.forEach(row => L.push(row.map(q).join(sep))); }
+    L.push('');
+  });
+  return L.join('\r\n');
+}
+let DL = null;   // downloads capability (null = ใช้ไม่ได้ในมุมมองนี้ → ซ่อนปุ่มดาวน์โหลด)
+(async () => { try { DL = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { DL = null; } if (DL && UI.modal && UI.modal.type === 'rep') renderModal(); })();
+async function repDownload() {
+  const r = UI.modal.rep;
+  try { await DL.save({ filename: r.fname, data: '﻿' + reportCSV(r, ',') }); UI.modal.msg = ['ok', `บันทึกไฟล์ ${r.fname} แล้ว`]; }
+  catch (e) { UI.modal.msg = e && e.code === 'declined' ? null : ['bad', e && e.code === 'rate_limited' ? 'มีหน้าต่างบันทึกเปิดอยู่ ลองใหม่อีกครั้ง' : 'บันทึกไฟล์ในมุมมองนี้ไม่ได้ ใช้ปุ่มคัดลอกแทน']; }
+  renderModal();
 }
 
 /* =================== FLOW DIAGRAM =================== */
@@ -1414,6 +1521,14 @@ function renderFlow() {
 function renderModal() {
   const m = UI.modal, host = $('#modal');
   if (!m) { host.innerHTML = ''; return; }
+  if (m.type === 'rep') {
+    host.innerHTML = `<div class="ov" data-a="ovClose"><div class="modal wide" role="dialog" aria-modal="true" aria-label="${esc(m.rep.title)}">
+      <div class="row between"><h2>${esc(m.rep.title)}</h2><button class="btn ghost sm" data-a="closeModal">ปิด</button></div>
+      <div class="row">${DL ? `<button class="btn primary sm" data-a="repSave">ดาวน์โหลด CSV (Excel)</button>` : ''}<button class="btn ghost sm" data-a="repCopy">คัดลอกตารางไปวางใน Excel</button><span class="small muted">${esc(m.rep.fname)}</span></div>
+      ${m.msg ? `<div class="alert ${m.msg[0]}"><span class="ico">${m.msg[0] === 'ok' ? '✓' : '!'}</span><span>${esc(m.msg[1])}</span></div>` : ''}
+      ${reportHTML(m.rep)}</div></div>`;
+    return;
+  }
   const c = getCase(m.id), cl = claimOf(c);
   let inner = '';
   if (m.type === 'sign') {
@@ -1574,6 +1689,9 @@ const A = {
   boFilter: b => { UI.boFilter = b.dataset.v; UI.boId = null; UI.t = {}; UI.err = ''; },
   boTab: b => { UI.boTab = b.dataset.v; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
   rp: b => { UI.rp = b.dataset.v; },
+  repOpen: b => { UI.modal = { type:'rep', rep: buildReport(b.dataset.v) }; },
+  repSave: () => { repDownload(); return false; },
+  repCopy: b => { const t = reportCSV(UI.modal.rep, '\t'); try { navigator.clipboard.writeText(t).then(() => { UI.modal.msg = ['ok', 'คัดลอกแล้ว วางใน Excel หรือ Google Sheets ได้เลย']; renderModal(); }, () => { UI.modal.msg = ['bad', 'คัดลอกไม่ได้ในมุมมองนี้']; renderModal(); }); } catch (e) {} return false; },
   flowSel: b => { UI.flowSel = b.dataset.k; },
   gsort: b => { UI.gsort = b.dataset.v; },
   boJump: b => { UI.view = 'bo'; UI.boTab = 'queue'; UI.boFilter = 'all'; UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
@@ -1637,6 +1755,7 @@ document.addEventListener('input', e => {
       const c = curBO(), amt = (Number(val) || 0) * RATES[c.type].rate, need = requiredStep(amt);
       $('#boEst').innerHTML = `<span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span>`;
     }
+  } else if (el.dataset.r) { UI[el.dataset.r] = el.value;
   } else if (el.id === 'bo-q') {
     UI.boQ = val; const q = val.toLowerCase();
     document.querySelectorAll('.qrow').forEach(r => { r.hidden = !r.dataset.s.includes(q); });
@@ -1656,6 +1775,7 @@ document.addEventListener('change', e => {
   } else if (el.dataset.w === 'garage') { UI.wiz.f.garage = el.value; render();
   } else if (el.tagName === 'SELECT' && el.dataset.w) { UI.wiz.f[el.dataset.w] = el.value; }
   else if (el.tagName === 'SELECT' && el.dataset.t) { UI.t[el.dataset.t] = el.value; }
+  else if (el.dataset.r) { UI[el.dataset.r] = el.value; }
 });
 const tipEl = () => document.getElementById('tip');
 document.addEventListener('pointerover', e => { const t = e.target.closest('[data-tip]'); const el = tipEl(); if (!t) { el.hidden = true; return; } el.textContent = t.dataset.tip; el.hidden = false; });
