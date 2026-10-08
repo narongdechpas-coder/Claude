@@ -313,6 +313,12 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
   .desk-only{display:flex!important}
   .hero{padding-top:28px}
 }
+.turn{align-self:flex-start;font-size:.76rem;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.02em}
+.turn.co{background:var(--info-soft);color:var(--info)}
+.turn.you{background:var(--sign);color:#3A2700}
+.turn.done{background:var(--ok-soft);color:var(--ok)}
+.nextbox{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 12px 12px 0;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.demo{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:.85rem;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -794,10 +800,10 @@ function trackLookup() {
 
 function caseView(c) {
   const cl = claimOf(c), st = ST[c.status], stage = st.stage;
-  const stages = [['ยื่นคำร้อง', fmtD(c.history[0].at)], ['ตรวจเอกสาร', ''], ['พิจารณาวงเงิน', ''], ['ตอบรับผลพิจารณา', ''], ['รับเงิน', '']];
+  const stages = [['ยื่นคำร้อง', 'คุณ · ' + fmtD(c.history[0].at)], ['ตรวจเอกสาร', 'บริษัท · ไม่เกิน 2 วันทำการ'], ['พิจารณาวงเงิน', 'บริษัท · คำนวณยอดและอนุมัติ'], ['ตอบรับผลพิจารณา', 'คุณ · ลงนามด้วย OTP'], ['รับเงิน', 'บริษัท · โอนเข้าบัญชีภายใน 2 วันทำการ']];
   const prog = `<ul class="prog">${stages.map((s, i) => {
     const cls = i < stage || (stage === 5 && i === 4) ? 'done' : i === stage ? 'now' : 'todo';
-    return `<li class="${cls}"><span class="dot">${cls === 'done' ? '✓' : i + 1}</span><div><div class="t">${s[0]}</div>${i === stage && stage < 5 ? `<div class="small muted">${esc(st.me)}</div>` : ''}</div></li>`;
+    return `<li class="${cls}"><span class="dot">${cls === 'done' ? '✓' : i + 1}</span><div><div class="t">${s[0]}</div><div class="small muted">${i === stage && stage < 5 ? `<b>ตอนนี้:</b> ${esc(st.me)}` : esc(s[1])}</div></div></li>`;
   }).join('')}</ul>`;
   const amountCard = c.approvedAmount && ['OFFERED', 'ACCEPTED', 'PAYMENT_FAILED', 'PAID'].includes(c.status) ? '' : `
     <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut || c.expectedOut, !c.repairOut && !c.expectedOut)}</div></section>`;
@@ -807,9 +813,9 @@ function caseView(c) {
   <section class="card" style="order:1">
     <div class="row between">${plateHTML(cl.plate, cl.province)}${pill(c.status, 'me')}</div>
     <div><p class="small muted">เลขคำร้อง</p><p class="caseno" style="font-size:1.15rem">${esc(c.id)}</p></div>
-    <p>${esc(st.msg)}</p>
+    ${nextCard(c) ? '' : `<p>${esc(st.msg)}</p>`}
   </section>
-  ${claimantAction(c).replace('<section class="card">', '<section class="card" style="order:2">')}
+  ${nextCard(c) || claimantAction(c).replace('<section class="card">', `<section class="card" style="order:2">${c.status === 'PAID' ? '<span class="turn done">เสร็จสิ้น</span>' : '<span class="turn you">ถึงตาคุณ</span>'}`)}
   ${amountCard.replace('<section class="card">', '<section class="card" style="order:4">')}
   </div><div class="cb">
   <section class="card" style="order:3"><h3>ความคืบหน้า</h3>${prog}</section>
@@ -819,6 +825,29 @@ function caseView(c) {
   </div></div>`;
 }
 
+// วันทำการถัดไป (ข้ามเสาร์-อาทิตย์)
+function addBizDays(iso, n) { const d = new Date(iso); let k = 0; while (k < n) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) k++; } return d.toISOString(); }
+// ตอนที่เป็นตาบริษัท: บอกลูกค้าว่าไม่ต้องทำอะไร รอถึงเมื่อไหร่ และขั้นต่อไปคืออะไร
+function nextCard(c) {
+  const left = c.status === 'PENDING_APPROVAL' ? requiredStep(c.approvedAmount) - c.approvals.length : 1;
+  const T = {
+    SUBMITTED:        { now:'เจ้าหน้าที่กำลังตรวจเอกสารของคุณ', days:SLA.SUBMITTED + SLA.UNDER_REVIEW, until:'แจ้งผลพิจารณายอดเงิน', next:'เมื่อเอกสารครบ บริษัทจะคำนวณยอดตามจำนวนวันซ่อมและอนุมัติวงเงิน แล้วส่ง SMS ให้คุณเข้ามาตรวจยอดและตอบรับ', ifBad:'ถ้าเอกสารไม่ครบ เราจะส่ง SMS บอกว่าต้องส่งอะไรเพิ่ม' },
+    UNDER_REVIEW:     { now:'เอกสารครบแล้ว บริษัทกำลังคำนวณยอดเงิน', days:SLA.UNDER_REVIEW, until:'แจ้งผลพิจารณายอดเงิน', next:'คุณจะได้รับ SMS ให้เข้ามาดูยอดเงินและวิธีคิด แล้วกดตอบรับด้วยรหัส OTP' },
+    PENDING_APPROVAL: { now:`ยอดเงินอยู่ระหว่างอนุมัติ (เหลืออีก ${left} ขั้น)`, days:SLA.PENDING_APPROVAL * left, until:'แจ้งผลพิจารณายอดเงิน', next:'คุณจะได้รับ SMS ให้เข้ามาดูยอดเงินและวิธีคิด แล้วกดตอบรับด้วยรหัส OTP' },
+    ACCEPTED:         { now:`คุณตอบรับยอด ${baht(c.approvedAmount)} แล้ว ฝ่ายการเงินกำลังโอนเงิน`, days:SLA.ACCEPTED, until:'เงินเข้าบัญชี ' + esc(c.bank.name) + ' ' + maskAcct(c.bank.acct), next:'เมื่อเงินเข้าแล้ว ดาวน์โหลดหนังสือยืนยันการจ่ายเงินได้ที่หน้านี้' },
+  }[c.status];
+  if (!T) return '';
+  const due = addBizDays(c.statusAt || c.history[c.history.length - 1].at, T.days);
+  return `<section class="card" style="order:2">
+    <span class="turn co">รอบริษัทดำเนินการ</span>
+    <h3>ตอนนี้คุณไม่ต้องทำอะไร</h3>
+    <p>${T.now} คาดว่าจะ${T.until}ภายใน <b>${fmtD(due)}</b></p>
+    <div class="nextbox"><b>ขั้นต่อไป</b><span>${T.next}</span>${T.ifBad ? `<span class="small muted">${T.ifBad}</span>` : ''}</div>
+    <p class="small muted">เราจะแจ้งทาง SMS ที่ ${esc(c.phone.slice(0, 3))}-xxx-${esc(c.phone.slice(-4))} ปิดหน้านี้ได้เลย แล้วกลับมาดูได้ด้วยเลขคำร้อง <span class="mono">${esc(c.id)}</span></p>
+    <div class="row"><button class="btn ghost sm" data-a="copy" data-v="${esc(c.id)}">คัดลอกเลขคำร้อง</button><button class="btn ghost sm" data-a="home">กลับหน้าแรก</button></div>
+    <div class="demo"><span>โหมดทดลอง: ขั้นนี้บริษัทเป็นคนทำในหลังบ้าน</span><button class="btn primary sm" data-a="boJump" data-id="${esc(c.id)}">ไปทำต่อในหลังบ้าน →</button></div>
+  </section>`;
+}
 function offerBreakdown(c) {
   const r = RATES[c.type].rate, rd = reqDays(c);
   return `<dl class="kv">
@@ -945,6 +974,7 @@ function boDetail(c) {
       </dl>
     </div>
   </div>
+  <div class="demo"><span>โหมดทดลอง: ดูว่าคู่กรณีเห็นอะไรในคำร้องนี้</span><button class="btn ghost sm" data-a="openCase" data-id="${c.id}">เปิดมุมมองผู้เรียกร้อง →</button></div>
   ${boAction(c)}
   <div class="card"><h3>เอกสาร</h3><div class="stack">${DOCS.map(d => `<div class="doc ${c.docs[d.id] ? 'has' : ''}"><span class="dico">${c.docs[d.id] ? '✓' : '–'}</span><div class="dtxt"><div class="dname">${esc(d.label)}</div><div class="small muted">${esc(c.docs[d.id] || 'ยังไม่มี')}</div></div></div>`).join('')}</div></div>
   <div class="card"><h3>ประวัติการดำเนินการ</h3><ul class="tl">${c.history.slice().reverse().map(h => `<li><span class="when">${fmtDT(h.at)}</span><span>${esc(h.text)}<br><span class="by">${h.by === 'claimant' ? 'ผู้เรียกร้อง' : h.by === 'company' ? 'บริษัท' : 'ระบบ'}</span></span></li>`).join('')}</ul></div>`;
@@ -1501,7 +1531,7 @@ const A = {
   rp: b => { UI.rp = b.dataset.v; },
   flowSel: b => { UI.flowSel = b.dataset.k; },
   gsort: b => { UI.gsort = b.dataset.v; },
-  boJump: b => { UI.boTab = 'queue'; UI.boFilter = 'all'; UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
+  boJump: b => { UI.view = 'bo'; UI.boTab = 'queue'; UI.boFilter = 'all'; UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; window.scrollTo(0, 0); },
   boOpen: b => { UI.boId = b.dataset.id; UI.t = {}; UI.err = ''; },
   boToggleNeed: () => { UI.t.needOpen = !UI.t.needOpen; },
   boDocsOk: () => { const c = curBO(); setStatus(c, 'UNDER_REVIEW'); log(c, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); save(); UI.t = {}; },
