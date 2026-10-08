@@ -927,7 +927,7 @@ function nextCard(c) {
   const due = addBizDays(c.statusAt || c.history[c.history.length - 1].at, T.days);
   return `<section class="card" style="order:2">
     <span class="turn co">รอบริษัทดำเนินการ</span>
-    <h3>ตอนนี้คุณไม่ต้องทำอะไร</h3>
+    <h3>${c.status === 'ACCEPTED' ? 'ทางบริษัทได้รับการตอบรับของคุณแล้ว' : 'ทางบริษัทได้รับข้อมูลการแจ้งของคุณแล้ว'}</h3>
     <p>${T.now} คาดว่าจะ${T.until}ภายใน <b>${fmtD(due)}</b></p>
     <div class="nextbox"><b>ขั้นต่อไป</b><span>${T.next}</span>${T.ifBad ? `<span class="small muted">${T.ifBad}</span>` : ''}</div>
     <p class="small muted">เราจะแจ้งทาง SMS ที่ ${esc(c.phone.slice(0, 3))}-xxx-${esc(c.phone.slice(-4))} ปิดหน้านี้ได้เลย แล้วกลับมาดูได้ด้วยเลขคำร้อง <span class="mono">${esc(c.id)}</span></p>
