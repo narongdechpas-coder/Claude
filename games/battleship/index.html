@@ -194,7 +194,7 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
     <p>วางกองเรือ 5 ลำของคุณให้ลับตา แล้วผลัดกันยิงขีปนาวุธใส่พิกัดของศัตรู ใครจมเรือของอีกฝ่ายได้ครบก่อนชนะ</p>
     <ol class="steps">
       <li>คลิกบนกระดานเพื่อวางเรือ กด R หรือคลิกขวาเพื่อหมุน (บนมือถือ แตะครั้งแรกดูตำแหน่ง แตะซ้ำเพื่อยืนยัน)</li>
-      <li>คลิกช่องบนกระดานศัตรูเพื่อยิง ยิงโดนได้ยิงต่อจนกว่าจะพลาด ลากเพื่อหมุนกล้อง เลื่อนล้อเมาส์เพื่อซูม</li>
+      <li>คลิกช่องบนกระดานศัตรูเพื่อยิง ลากเพื่อหมุนกล้อง เลื่อนล้อเมาส์เพื่อซูม</li>
       <li>ใช้ปุ่มลูกศรเลือกช่อง แล้วกด Enter เพื่อวางเรือหรือยิงได้เช่นกัน</li>
     </ol>
     <div class="legend"><span><i class="dot r"></i>หมุดแดง = โดน</span><span><i class="dot w"></i>ช่องขาวจาง = พลาด</span></div>
@@ -205,6 +205,14 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
         <button data-d="normal" aria-pressed="true">ปกติ</button>
         <button data-d="hard" aria-pressed="false">โหด</button>
       </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="label">กติกาการยิง</span>
+      <div class="seg" id="ruleSeg">
+        <button data-r="single" aria-pressed="false">ผลัดกันยิงทีละนัด</button>
+        <button data-r="chain" aria-pressed="true">ยิงโดนได้ยิงต่อ</button>
+      </div>
+      <span class="hint" id="ruleHint">ยิงโดนได้ยิงต่อไปเรื่อย ๆ จนกว่าจะพลาด ใช้กับทั้งเราและศัตรู</span>
     </div>
     <button class="big" id="startBtn">ออกรบ</button>
     <span class="hint">เกมนี้มีเสียง เปิดลำโพงเพื่อความมันส์</span>
@@ -892,7 +900,7 @@ const Sound = (() => {
 const emptyGrid = v => Array.from({ length: N }, () => Array(N).fill(v));
 function newBoard() { return { ships: Array(FLEET.length).fill(null), grid: emptyGrid(-1), shots: emptyGrid(0) }; }
 const S = {
-  phase: 'intro', diff: 'normal', turn: 'player', busy: false,
+  phase: 'intro', diff: 'normal', rule: 'chain', turn: 'player', busy: false,
   player: newBoard(), enemy: newBoard(),
   placeIdx: 0, placeDir: 'h', viewingOwn: false,
   stats: { shots: 0, hits: 0, aiShots: 0, aiHits: 0, turns: 0 }, log: [],
@@ -1264,7 +1272,7 @@ async function playerShoot(r, c) {
   if (res.sunk) await sinkSequence('enemy', res.ship); else await wait(1.0);
   renderFleets();
   if (allSunk(S.enemy)) return gameOver(true);
-  if (res.hit) {
+  if (res.hit && S.rule === 'chain') {
     S.busy = false;
     setStatus('you', 'ยิงต่อ!', `ยิงโดน ${cellName(r, c)} ได้ยิงต่ออีกนัด`);
     return;
@@ -1303,7 +1311,7 @@ async function enemyTurn() {
   if (res.sunk) await sinkSequence('player', res.ship); else await wait(1.1);
   renderFleets();
   if (allSunk(S.player)) { gameOver(false); return true; }
-  if (!res.hit) break;
+  if (!res.hit || S.rule !== 'chain') break;
   }
   await setView('enemy', 1.1);
   return false;
@@ -1351,7 +1359,7 @@ function startBattle() {
   randomFleet('enemy', false);
   S.phase = 'battle'; S.turn = 'player'; S.busy = false;
   showPhaseUI();
-  setStatus('you', 'ตาของคุณ', 'เลือกพิกัดบนน่านน้ำศัตรูเพื่อยิง');
+  setStatus('you', 'ตาของคุณ', S.rule === 'chain' ? 'เลือกพิกัดบนน่านน้ำศัตรูเพื่อยิง (ยิงโดนได้ยิงต่อ)' : 'เลือกพิกัดบนน่านน้ำศัตรูเพื่อยิง (ผลัดกันยิงทีละนัด)');
   toast('เริ่มรบ!', 'sunk', 1.6);
   Sound.lock(); Sound.startDrums();
   setView('enemy', 1.8);
@@ -1361,6 +1369,12 @@ function startBattle() {
 $('diffSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   S.diff = b.dataset.d; [...$('diffSeg').children].forEach(x => x.setAttribute('aria-pressed', String(x === b))); Sound.init(); Sound.ui();
+});
+const RULE_HINT = { single: 'ผลัดกันยิงฝ่ายละหนึ่งนัด ไม่ว่าจะโดนหรือพลาด แบบกติกาดั้งเดิม', chain: 'ยิงโดนได้ยิงต่อไปเรื่อย ๆ จนกว่าจะพลาด ใช้กับทั้งเราและศัตรู' };
+function syncRule() { [...$('ruleSeg').children].forEach(x => x.setAttribute('aria-pressed', String(x.dataset.r === S.rule))); $('ruleHint').textContent = RULE_HINT[S.rule]; }
+$('ruleSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.rule = b.dataset.r; syncRule(); Sound.init(); Sound.ui();
 });
 $('startBtn').addEventListener('click', () => { Sound.init(); Sound.ui(); Sound.ping(); beginPlacement(); });
 $('againBtn').addEventListener('click', () => { Sound.init(); Sound.ui(); S.phase = 'intro'; clearWorld(); demoFleet(); setView('overview', 1.5); showPhaseUI(); setStatus('', 'พร้อมรบ', 'เลือกระดับความยาก แล้วกดออกรบ'); });
@@ -1417,11 +1431,11 @@ addEventListener('resize', onResize);
 /* ---------------- persistence across live updates ---------------- */
 function serialize() {
   const sb = B => ({ ships: B.ships.map(s => s && { i: s.typeIdx, r: s.r, c: s.c, dir: s.dir }), shots: B.shots });
-  return { phase: S.phase, diff: S.diff, placeIdx: S.placeIdx, placeDir: S.placeDir, player: sb(S.player), enemy: sb(S.enemy), stats: S.stats, log: S.log };
+  return { phase: S.phase, diff: S.diff, rule: S.rule, placeIdx: S.placeIdx, placeDir: S.placeDir, player: sb(S.player), enemy: sb(S.enemy), stats: S.stats, log: S.log };
 }
 function restore(d) {
   clearWorld();
-  S.diff = d.diff || 'normal'; S.placeDir = d.placeDir || 'h';
+  S.diff = d.diff || 'normal'; S.rule = d.rule || 'chain'; syncRule(); S.placeDir = d.placeDir || 'h';
   [...$('diffSeg').children].forEach(x => x.setAttribute('aria-pressed', String(x.dataset.d === S.diff)));
   for (const side of ['player', 'enemy']) (d[side].ships || []).forEach(s => { if (s) addShip(side, s.i, s.r, s.c, s.dir, false); });
   S.phase = d.phase === 'over' ? 'over' : d.phase;
