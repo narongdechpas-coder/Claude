@@ -367,6 +367,9 @@ details.fold > summary{font-size:.9rem;color:var(--muted)}
 .paper .rt td{padding:4px 6px;border-bottom:1px dotted #CCC;width:auto;color:#1A1A1A}
 .paper .rt td.r,.paper .rt th.r{text-align:right;font-variant-numeric:tabular-nums}
 .paper .empty{color:#777;font-size:.8rem}
+.basis{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.basis input{margin-top:4px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.basis.on{border-color:var(--accent);background:var(--accent-soft)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -378,7 +381,7 @@ details.fold > summary{font-size:.9rem;color:var(--muted)}
 <script>
 'use strict';
 /* =================== ข้อมูลจำลอง & การตั้งค่า =================== */
-const KEY = 'lu-proto-v2';
+const KEY = 'lu-proto-v3';
 const COMPANY = 'บริษัท ประกันภัยตัวอย่าง จำกัด (มหาชน)';
 const OTP = '123456';
 const RATES = {
@@ -386,6 +389,18 @@ const RATES = {
   van:   { label: 'รถยนต์ 8–20 ที่นั่ง', hint: 'รถตู้', rate: 700 },
   truck: { label: 'รถเกิน 20 ที่นั่ง / รถบรรทุก', hint: 'รถโดยสาร รถบรรทุก', rate: 1000 },
 };
+// วิธีคิดค่าขาดประโยชน์: อัตรามาตรฐาน (ค่าเริ่มต้น) หรือขอเกินฐานพร้อมหลักฐาน ไม่เกินเพดานต่อวัน
+const CAP_MULT = 3;   // เพดานต่อวัน = 3 เท่าของอัตรามาตรฐาน (ค่าจำลอง ปรับตามนโยบายบริษัท)
+const BASIS = {
+  base:   { label:'อัตรามาตรฐาน', short:'อัตราฐาน', hint:'คิดตามประเภทรถ ไม่ต้องแนบหลักฐานเพิ่ม พิจารณาเร็วที่สุด' },
+  rental: { label:'ค่าเช่ารถทดแทนตามจริง', short:'ค่าเช่ารถ', hint:'คุณเช่ารถมาใช้ระหว่างซ่อม', ask:'ค่าเช่ารถต่อวัน', doc:'ใบเสร็จหรือสัญญาเช่ารถ' },
+  income: { label:'รายได้ที่ขาด', short:'รายได้ที่ขาด', hint:'รถรับจ้างหรือรถที่ใช้ทำมาหากิน', ask:'รายได้เฉลี่ยต่อวัน', doc:'หลักฐานรายได้ย้อนหลัง 3 เดือน เช่น สเตทเมนต์ ใบงาน' },
+  travel: { label:'ค่าเดินทางทดแทน', short:'ค่าเดินทาง', hint:'นั่งแท็กซี่หรือรถสาธารณะแทนระหว่างไม่มีรถ', ask:'ค่าเดินทางเฉลี่ยต่อวัน', doc:'ใบเสร็จหรือประวัติการเดินทางในแอป' },
+};
+const capOf = type => RATES[type].rate * CAP_MULT;
+const overBase = c => !!c.basis && c.basis !== 'base';
+const claimRate = c => overBase(c) ? c.dailyClaim : RATES[c.type].rate;   // อัตราต่อวันที่ขอ
+const apRate = c => c.approvedRate ?? RATES[c.type].rate;                 // อัตราต่อวันที่อนุมัติ
 // อำนาจอนุมัติวงเงิน: อนุมัติตามลำดับ Step 1 → 2 → 3 จนถึงระดับที่ยอดเงินกำหนด
 const TIERS = [
   { step: 1, max: 5000,     role: 'เจ้าหน้าที่สินไหม',     who: 'คุณปวีณา' },
@@ -393,12 +408,15 @@ const TIERS = [
   { step: 3, max: Infinity, role: 'ผู้จัดการฝ่ายสินไหม', who: 'คุณรัตนา' },
 ];
 const requiredStep = amt => TIERS.find(t => amt <= t.max).step;
+// คำร้องที่ขอเกินฐานต้องผ่านอย่างน้อย Step 2 เสมอ
+const stepNeeded = (c, amt) => Math.max(requiredStep(amt ?? c.approvedAmount), overBase(c) ? 2 : 1);
 const BANKS = ['กสิกรไทย','กรุงเทพ','ไทยพาณิชย์','กรุงไทย','กรุงศรีอยุธยา','ทหารไทยธนชาต','ออมสิน'];
 const DOCS = [
   { id: 'idcard',    label: 'บัตรประชาชน',               hint: 'ด้านหน้า เห็นชื่อและเลขบัตรชัดเจน' },
   { id: 'carbook',   label: 'สำเนาทะเบียนรถ',            hint: 'หน้าที่มีชื่อเจ้าของรถ' },
   { id: 'bankbook',  label: 'หน้าสมุดบัญชีธนาคาร',       hint: 'ชื่อบัญชีต้องตรงกับเจ้าของรถ' },
   { id: 'repairIn',  label: 'ใบรับรถเข้าซ่อม',            hint: 'ออกโดยอู่หรือศูนย์บริการ' },
+  { id: 'evidence',  label: 'หลักฐานค่าใช้จ่าย/รายได้', hint: 'เฉพาะคำร้องที่ขอเกินอัตรามาตรฐาน' },
   { id: 'repairOut', label: 'ใบส่งมอบรถ / ใบเสร็จค่าซ่อม', hint: 'ส่งภายหลังได้ถ้ารถยังซ่อมไม่เสร็จ' },
 ];
 // อู่: dealer = อู่ห้าง/ศูนย์บริการของผู้ผลิต, general = อู่นอก/อู่อิสระ
@@ -429,6 +447,7 @@ const REASONS = {
   parts:   'อู่รออะไหล่นานเกินควร',
   late:    'ผู้เรียกร้องรับรถคืนช้ากว่าวันที่ซ่อมเสร็จ',
   over:    'จำนวนวันเกินมาตรฐานของระดับความเสียหาย',
+  evidence:'หลักฐานไม่พอสำหรับอัตราที่ขอ จ่ายตามอัตรามาตรฐาน',
   other:   'อื่น ๆ',
 };
 // SLA ฝั่งบริษัท (วัน) ต่อสถานะ
@@ -458,6 +477,7 @@ const isFuture = d => !!d && d > todayISO();
 const days = (a, b) => (a && b) ? Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1 : 0;
 const maskAcct = a => a ? 'xxx-x-x' + String(a).slice(-4) : '';
 const claimOf = c => CLAIMS.find(x => x.claimNo === c.claimNo);
+const docsFor = basis => DOCS.filter(d => d.id !== 'evidence' || (basis && basis !== 'base'));
 const docLabel = id => DOCS.find(d => d.id === id)?.label || id;
 const plateHTML = (plate, prov, sm) => `<span class="plate${sm ? ' sm' : ''}"><span class="p1">${esc(plate)}</span><span class="p2">${esc(prov)}</span></span>`;
 
@@ -531,11 +551,15 @@ function genHistory() {
     let aDays = rdays, reasonCode;
     if (rdays > std * 1.4 && R() < 0.75) { aDays = Math.round(std * 1.3); reasonCode = R() < 0.6 ? 'parts' : 'over'; }
     else if (R() < 0.12) { aDays = rdays - Math.ceil(R() * 3); reasonCode = R() < 0.5 ? 'queue' : 'late'; }
+    const basis = (r => r < 0.08 ? 'rental' : r < 0.16 ? (type === 'car' ? 'travel' : 'income') : 'base')(R());
+    const dailyClaim = basis === 'base' ? undefined : Math.round(rate * (1.5 + R() * 1.2) / 50) * 50;
+    const aRate = basis === 'base' ? rate : R() < 0.3 ? rate : dailyClaim;
+    if (basis !== 'base' && aRate < dailyClaim && !reasonCode) reasonCode = 'evidence';
     let acct = String(Math.floor(1e9 + R() * 8.9e9));
     if (i === 6) dupAcct = acct; if (i === 23 && dupAcct) acct = dupAcct;   // บัญชีซ้ำ 1 คู่ไว้ให้รายงานตรวจพบ
     const c = { claimNo, phone:'08' + String(Math.floor(1e7 + R() * 8.9e7)), type, repairIn:day(inT), repairOut:day(outT), expectedOut:expOut,
       bank:{ name:pick(BANKS2), acct }, holder:owner, garageId:g.id, repairCost:repairCostOf(sev, g.type, R()),
-      docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf' }, approvals:[], appealCount:0, history:[] };
+      basis, dailyClaim, docs:{ idcard:'id.jpg', carbook:'book.jpg', bankbook:'bank.jpg', repairIn:'in.pdf', repairOut:'out.pdf', ...(basis !== 'base' ? { evidence:'evidence.pdf' } : {}) }, approvals:[], appealCount:0, history:[] };
     const H = (t, text, by) => c.history.push({ at:iso(t), text, by });
     const set = (st, t) => { c.status = st; c.statusAt = iso(t); };
     H(t0, 'ยื่นคำร้อง', 'claimant'); set('SUBMITTED', t0);
@@ -543,10 +567,10 @@ function genHistory() {
     if (t > now) { if (R() < 0.3) { c.needInfo = { docs:['bankbook'], note:'รูปหน้าสมุดบัญชีไม่ชัด' }; set('NEED_INFO', t0 + 0.2 * D); H(t0 + 0.2 * D, 'ขอเอกสารเพิ่ม: หน้าสมุดบัญชีธนาคาร', 'company'); } out.push(c); continue; }
     H(t, 'ตรวจเอกสารครบถ้วน ส่งพิจารณาวงเงิน', 'company'); set('UNDER_REVIEW', t);
     t += btw(0.2, 2.2) * D; if (t > now) { out.push(c); continue; }
-    c.approvedDays = aDays; c.approvedAmount = aDays * rate; c.proposedAt = iso(t);
+    c.approvedDays = aDays; c.approvedRate = aRate; c.approvedAmount = aDays * aRate; c.proposedAt = iso(t);
     if (reasonCode) { c.reasonCode = reasonCode; c.adjustReason = REASONS[reasonCode]; }
-    const need = requiredStep(c.approvedAmount);
-    H(t, `เสนอยอด ${aDays} วัน × ${rate.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${need})`, 'company'); set('PENDING_APPROVAL', t);
+    const need = stepNeeded(c);
+    H(t, `เสนอยอด ${aDays} วัน × ${aRate.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${need})`, 'company'); set('PENDING_APPROVAL', t);
     let stop = false;
     for (let st = 1; st <= need; st++) {
       t += btw(0.1, st === 3 ? 3.2 : st === 2 ? 1.8 : 1.1) * D;
@@ -569,13 +593,13 @@ function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return 
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 genHistory();   // ลงทะเบียนข้อมูลเคลมจำลองย้อนหลังทุกครั้งที่เปิดหน้า
 let S = load() || seedAll();
-const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', garage:'', garageName:'', garageType:'', bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
+const newWiz = () => ({ step:0, f:{ claimNo:'', plate:'', phone:'', otp:'', pdpa:false, repairIn:'', repairOut:'', basis:'base', dailyClaim:'', garage:'', garageName:'', garageType:'', bank:'', acct:'', certify:false }, docs:{}, claim:null, otpSent:false, err:'' });
 let UI = { flowSel:'CP1', boTab:'queue', rp:'90', gsort:'score', view:'claimant', page:'home', wiz:newWiz(), caseId:null, boId:null, boFilter:'todo', calc:{ type:'car', days:7 }, t:{}, err:'', modal:null, bankLog:{} };
 try { const v = localStorage.getItem(KEY + '-view'); if (v === 'bo' || v === 'claimant') UI.view = v; } catch (e) {}
 
 const getCase = id => S.cases.find(c => c.id === id);
 const reqDays = c => c.repairOut ? days(c.repairIn, c.repairOut) : days(c.repairIn, todayISO());
-const reqAmount = c => reqDays(c) * RATES[c.type].rate;
+const reqAmount = c => reqDays(c) * claimRate(c);
 const garageOf = c => c.garageId ? GARAGES.find(g => g.id === c.garageId) : { id:'x:' + (c.garageName || ''), name:c.garageName || 'ไม่ระบุ', type:c.garageType || 'general' };
 const gBadge = g => `<span class="pill ${g.type === 'dealer' ? 'info' : 'sign'}">${GTYPE[g.type].label}</span>`;
 const setStatus = (c, st) => { c.status = st; c.statusAt = new Date().toISOString(); };
@@ -647,7 +671,7 @@ function home() {
       <span class="amt">${baht(d * r)}</span>
       <span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน</span>
     </div>
-    <p class="small muted">เป็นการประมาณตามอัตราต่อวันของประเภทรถ ยอดจริงขึ้นกับจำนวนวันซ่อมที่สมเหตุสมผลและการพิจารณาของบริษัท</p>
+    <p class="small muted">ประมาณตามอัตรามาตรฐานของประเภทรถ ถ้าคุณเช่ารถ ขาดรายได้ หรือเสียค่าเดินทางมากกว่านี้ เลือกขอตามจริงได้ตอนยื่น (ไม่เกิน ${CAP_MULT} เท่าต่อวัน พร้อมหลักฐาน)</p>
   </section>
   <section class="card" style="grid-area:needs">
     <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
@@ -677,7 +701,7 @@ function wizard() {
   const err = w.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${w.err}</span></div>` : '';
   const back = `<button class="btn ghost" data-a="${w.step === 0 ? 'home' : 'wizBack'}">${w.step === 0 ? 'ยกเลิก' : 'ย้อนกลับ'}</button>`;
   const body = [wStep0, wStep1, wStep2, wStep3, wStep4][w.step]();
-  return `${stepper}<div class="split"><div class="ca"><section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}</div><div class="cb sticky desk-only">${wizSide()}</div></div>`;
+  return `${stepper}<div class="split"><div class="ca"><section class="card">${body.head}${err}${body.main}<div class="row between">${back}${body.next}</div></section>${body.after || ''}</div><div class="cb sticky desk-only" id="wizside">${wizSide()}</div></div>`;
 }
 function wizSide() {
   const w = UI.wiz, f = w.f, c = w.claim;
@@ -689,12 +713,13 @@ function wizSide() {
       <dl class="kv">
         <dt>เจ้าของรถ</dt><dd>${v(c && esc(c.owner))}</dd>
         <dt>เบอร์มือถือ</dt><dd class="num">${v(w.step > 1 && esc(f.phone))}</dd>
+        <dt>วิธีคิด</dt><dd>${c ? `${BASIS[f.basis].short} · ${wizRate().toLocaleString('th-TH')} บาท/วัน` : v('')}</dd>
         <dt>อู่</dt><dd>${v(g)}</dd>
         <dt>ช่วงซ่อม</dt><dd>${v(f.repairIn && `${fmtD(f.repairIn)} – ${f.repairOut ? fmtD(f.repairOut) : '…'}`)}</dd>
         <dt>บัญชีรับเงิน</dt><dd>${v(f.bank && f.acct && `${esc(f.bank)} ${maskAcct(f.acct)}`)}</dd>
-        <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length ? Object.keys(w.docs).length + ' / ' + DOCS.length + ' ไฟล์' : v('')}</dd>
+        <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length ? Object.keys(w.docs).length + ' / ' + docsFor(f.basis).length + ' ไฟล์' : v('')}</dd>
       </dl>
-      ${c && f.repairIn ? `<div class="est">${estBox(c.type, f.repairIn, f.repairOut)}</div>` : ''}
+      ${c && f.repairIn ? `<div class="est">${estBox(c.type, f.repairIn, f.repairOut, false, wizRate())}</div>` : ''}
     </section>
     <section class="flat small">
       <b>ต้องการความช่วยเหลือ?</b>
@@ -743,13 +768,24 @@ function wStep1() {
     next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
   };
 }
-function estBox(type, a, b, notDone) {
+function estBox(type, a, b, notDone, rate) {
   const exp = !notDone && isFuture(b);
-  const r = RATES[type].rate, d = notDone ? days(a, todayISO()) : days(a, b);
+  const r = rate || RATES[type].rate, d = notDone ? days(a, todayISO()) : days(a, b);
   if (!a || d <= 0) return `<span class="small" style="color:var(--sign-ink)">ยอดประมาณการ</span><span class="amt">–</span><span class="formula">กรอกวันที่รถเข้าซ่อมเพื่อดูยอด</span>`;
   return `<span class="small" style="color:var(--sign-ink)">${notDone ? 'ยอดประมาณการถึงวันนี้' : exp ? 'ยอดประมาณการถึงวันที่อู่นัดรับรถ' : 'ยอดที่ขอเรียกร้อง'}</span>
     <span class="amt">${baht(d * r)}</span><span class="formula">${d} วัน × ${r.toLocaleString('th-TH')} บาท/วัน${notDone ? ' · ยอดจะนับต่อจนรถซ่อมเสร็จ' : exp ? ' · ยอดจริงคิดตามวันที่รับรถคืนจริง' : ''}</span>
     ${d > 30 ? `<span class="small" style="color:var(--warn)">ซ่อมนานกว่า 30 วัน เจ้าหน้าที่อาจขอข้อมูลเหตุผลเพิ่ม</span>` : ''}`;
+}
+const wizRate = () => { const f = UI.wiz.f, c = UI.wiz.claim, v = Number(f.dailyClaim); return f.basis !== 'base' && v > 0 ? Math.min(v, capOf(c.type)) : RATES[c.type].rate; };
+function basisPicker(f, c) {
+  const base = RATES[c.type].rate, cap = capOf(c.type);
+  return `<fieldset class="stack" style="border:0;padding:0;margin:0;gap:8px"><legend class="small" style="font-weight:600;margin-bottom:6px">วิธีคิดค่าขาดประโยชน์</legend>
+    ${Object.entries(BASIS).map(([k, v]) => `<label class="basis ${f.basis === k ? 'on' : ''}"><input type="radio" name="basis" value="${k}" data-w="basis" ${f.basis === k ? 'checked' : ''}>
+      <span><b>${v.label}</b>${k === 'base' ? ` <span class="pill ok" style="font-size:.7rem">แนะนำ</span>` : ''}<br><span class="small muted">${k === 'base' ? `${base.toLocaleString('th-TH')} บาท/วัน · ${v.hint}` : v.hint}</span></span></label>`).join('')}
+    ${f.basis !== 'base' ? `<div class="field"><label for="w-daily">${BASIS[f.basis].ask} (บาท)</label><input class="input num" type="number" id="w-daily" data-w="dailyClaim" value="${esc(f.dailyClaim)}" min="${base + 1}" max="${cap}" inputmode="numeric" placeholder="มากกว่า ${base.toLocaleString('th-TH')} ไม่เกิน ${cap.toLocaleString('th-TH')}">
+      <span class="hint">เพดาน ${cap.toLocaleString('th-TH')} บาท/วัน (${CAP_MULT} เท่าของอัตรามาตรฐาน)</span></div>
+      <div class="alert info"><span class="ico">i</span><span>ต้องแนบ <b>${BASIS[f.basis].doc}</b> ในขั้นเอกสาร · ถ้าหลักฐานไม่พอ บริษัทจะจ่ายตามอัตรามาตรฐาน ${base.toLocaleString('th-TH')} บาท/วัน · ใช้เวลาพิจารณานานขึ้นเล็กน้อยเพราะต้องผ่านหัวหน้าทีม</span></div>` : ''}
+  </fieldset>`;
 }
 function wStep2() {
   const w = UI.wiz, f = w.f, c = w.claim;
@@ -769,7 +805,8 @@ function wStep2() {
         <div class="field"><label for="w-in">วันที่รถเข้าซ่อม</label><input class="input" type="date" id="w-in" data-w="repairIn" value="${esc(f.repairIn)}" min="${c.accident}" max="${todayISO()}"></div>
         <div class="field"><label for="w-out">วันที่รับรถคืน</label><input class="input" type="date" id="w-out" data-w="repairOut" value="${esc(f.repairOut)}" min="${esc(f.repairIn || c.accident)}" max="${plusDays(120)}"><span class="hint">ยังซ่อมไม่เสร็จ? เลือกวันที่อู่นัดรับรถได้เลย</span></div>
       </div>
-      <div class="est" id="est" aria-live="polite">${estBox(c.type, f.repairIn, f.repairOut)}</div>
+      ${basisPicker(f, c)}
+      <div class="est" id="est" aria-live="polite">${estBox(c.type, f.repairIn, f.repairOut, false, wizRate())}</div>
       ${isFuture(f.repairOut) ? `<div class="alert info"><span class="ico">i</span><span>ยื่นไว้ก่อนได้เลย เมื่อรับรถคืนแล้วค่อยกลับมาแนบใบส่งมอบรถในหน้าติดตามคำร้อง</span></div>` : ''}
       <h3 style="margin-top:6px">บัญชีรับเงิน</h3>
       <div class="grid2">
@@ -794,7 +831,7 @@ function wStep3() {
   const w = UI.wiz;
   return {
     head: `<h2>แนบเอกสาร</h2><p class="muted">ถ่ายรูปจากมือถือได้เลย รองรับไฟล์รูปภาพและ PDF</p>`,
-    main: `<div class="stack">${DOCS.map(d => docRow(d, w.docs[d.id], 'data-doc', d.id === 'repairOut' && isFuture(w.f.repairOut))).join('')}</div>
+    main: `<div class="stack">${docsFor(w.f.basis).map(d => docRow(d.id === 'evidence' ? { ...d, hint: BASIS[w.f.basis].doc } : d, w.docs[d.id], 'data-doc', d.id === 'repairOut' && isFuture(w.f.repairOut))).join('')}</div>
       <button class="chipbtn" data-a="sampleAll" style="align-self:flex-start">ใช้ไฟล์ตัวอย่างทั้งหมด</button>`,
     next: `<button class="btn primary" data-a="wizNext">ถัดไป</button>`,
   };
@@ -808,13 +845,14 @@ function wStep4() {
       <dl class="kv">
         <dt>ผู้เรียกร้อง</dt><dd>${esc(c.owner)}</dd>
         <dt>เบอร์มือถือ</dt><dd class="num">${esc(f.phone)}</dd>
+        <dt>วิธีคิด</dt><dd>${BASIS[f.basis].label} · ${wizRate().toLocaleString('th-TH')} บาท/วัน</dd>
         <dt>อู่</dt><dd>${f.garage === 'other' ? esc(f.garageName) + ' (' + GTYPE[f.garageType].label + ')' : esc(GARAGES.find(g => g.id === f.garage).name)}</dd>
         <dt>รถเข้าซ่อม</dt><dd>${fmtD(f.repairIn)}</dd>
         <dt>รับรถคืน</dt><dd>${fmtD(f.repairOut)}${isFuture(f.repairOut) ? ' <span class="muted small">(วันที่อู่นัด)</span>' : ''}</dd>
         <dt>บัญชีรับเงิน</dt><dd>${esc(f.bank)} ${maskAcct(f.acct)}</dd>
         <dt>เอกสาร</dt><dd>${Object.keys(w.docs).length} ไฟล์</dd>
       </dl>
-      <div class="est">${estBox(c.type, f.repairIn, f.repairOut)}</div>
+      <div class="est">${estBox(c.type, f.repairIn, f.repairOut, false, wizRate())}</div>
       <label class="check"><input type="checkbox" data-w="certify" ${f.certify ? 'checked' : ''}><span>ข้าพเจ้ารับรองว่าข้อมูลและเอกสารทั้งหมดเป็นความจริง</span></label>`,
     next: `<button class="btn primary" data-a="submit">ยื่นคำร้อง</button>`,
   };
@@ -855,7 +893,7 @@ function caseView(c) {
     return `<li class="${cls}"><span class="dot">${cls === 'done' ? '✓' : i + 1}</span><div><div class="t">${s[0]}</div><div class="small muted">${i === stage && stage < 5 ? `<b>ตอนนี้:</b> ${esc(st.me)}` : esc(s[1])}</div></div></li>`;
   }).join('')}</ul>`;
   const amountCard = c.approvedAmount && ['OFFERED', 'ACCEPTED', 'PAYMENT_FAILED', 'PAID'].includes(c.status) ? '' : `
-    <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut || c.expectedOut, !c.repairOut && !c.expectedOut)}</div></section>`;
+    <section class="card"><h3>ยอดที่ขอเรียกร้อง</h3><div class="est">${estBox(c.type, c.repairIn, c.repairOut || c.expectedOut, !c.repairOut && !c.expectedOut, claimRate(c))}</div></section>`;
   return `
   <div class="row between"><button class="linkbtn" data-a="home">← หน้าแรก</button><span class="small muted mono">${esc(c.claimNo)}</span></div>
   <div class="split"><div class="ca">
@@ -878,7 +916,7 @@ function caseView(c) {
 function addBizDays(iso, n) { const d = new Date(iso); let k = 0; while (k < n) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) k++; } return d.toISOString(); }
 // ตอนที่เป็นตาบริษัท: บอกลูกค้าว่าไม่ต้องทำอะไร รอถึงเมื่อไหร่ และขั้นต่อไปคืออะไร
 function nextCard(c) {
-  const left = c.status === 'PENDING_APPROVAL' ? requiredStep(c.approvedAmount) - c.approvals.length : 1;
+  const left = c.status === 'PENDING_APPROVAL' ? stepNeeded(c) - c.approvals.length : 1;
   const T = {
     SUBMITTED:        { now:'เจ้าหน้าที่กำลังตรวจเอกสารของคุณ', days:SLA.SUBMITTED + SLA.UNDER_REVIEW, until:'แจ้งผลพิจารณายอดเงิน', next:'เมื่อเอกสารครบ บริษัทจะคำนวณยอดตามจำนวนวันซ่อมและอนุมัติวงเงิน แล้วส่ง SMS ให้คุณเข้ามาตรวจยอดและตอบรับ', ifBad:'ถ้าเอกสารไม่ครบ เราจะส่ง SMS บอกว่าต้องส่งอะไรเพิ่ม' },
     UNDER_REVIEW:     { now:'เอกสารครบแล้ว บริษัทกำลังคำนวณยอดเงิน', days:SLA.UNDER_REVIEW, until:'แจ้งผลพิจารณายอดเงิน', next:'คุณจะได้รับ SMS ให้เข้ามาดูยอดเงินและวิธีคิด แล้วกดตอบรับด้วยรหัส OTP' },
@@ -898,11 +936,12 @@ function nextCard(c) {
   </section>`;
 }
 function offerBreakdown(c) {
-  const r = RATES[c.type].rate, rd = reqDays(c);
+  const r = apRate(c), rd = reqDays(c);
   return `<dl class="kv">
     <dt>วันที่ขอ</dt><dd class="num">${rd} วัน (${fmtD(c.repairIn)} – ${fmtD(c.repairOut)})</dd>
     <dt>วันที่อนุมัติ</dt><dd class="num">${c.approvedDays} วัน</dd>
-    <dt>อัตราต่อวัน</dt><dd class="num">${r.toLocaleString('th-TH')} บาท</dd>
+    ${overBase(c) ? `<dt>อัตราที่ขอ</dt><dd class="num">${claimRate(c).toLocaleString('th-TH')} บาท/วัน (${BASIS[c.basis].label})</dd>` : ''}
+    <dt>อัตราที่อนุมัติ</dt><dd class="num">${r.toLocaleString('th-TH')} บาท/วัน</dd>
   </dl>
   <div class="est"><span class="small" style="color:var(--sign-ink)">ยอดอนุมัติ</span><span class="amt">${baht(c.approvedAmount)}</span><span class="formula">${c.approvedDays} วัน × ${r.toLocaleString('th-TH')} บาท</span></div>
   ${c.adjustReason ? `<div class="alert info"><span class="ico">i</span><span><b>เหตุผลที่ยอดต่างจากที่ขอ:</b> ${esc(c.adjustReason)}</span></div>` : ''}`;
@@ -1012,7 +1051,7 @@ function qRow(c, cur) {
     <span class="dot" style="--c:${PILLC[ST[c.status].pill]}"></span>
     <span class="nm">${esc(cl.owner)}</span>
     <span class="am">${baht(c.approvedAmount ?? reqAmount(c))}</span>
-    <span class="sub">${c.id.slice(-4)} · ${esc(cl.plate)} · ${todo ? `<b style="color:var(--ink)">${todo}</b>` : esc(ST[c.status].bo)}</span>
+    <span class="sub">${c.id.slice(-4)} · ${esc(cl.plate)}${overBase(c) ? ' · <b style="color:var(--sign-ink)">เกินฐาน</b>' : ''} · ${todo ? `<b style="color:var(--ink)">${todo}</b>` : esc(ST[c.status].bo)}</span>
     <span class="age ${late ? 'late' : ''}">${ageTxt(a)}${late ? ' · เกิน SLA' : ''}</span>
   </button>`;
 }
@@ -1032,10 +1071,10 @@ function boDetail(c) {
       ${kv('ความเสียหาย', `${SEV[cl.sev].label} <span class="muted small">(มาตรฐาน ${SEV[cl.sev].std} วัน)</span>`)}
       ${kv('อู่', `${esc(g.name)} ${gBadge(g)}`)}
       ${kv('ช่วงซ่อม', `${fmtD(c.repairIn)} – ${c.repairOut ? fmtD(c.repairOut) : 'ยังไม่เสร็จ'}`)}
-      ${kv('ยอดที่ขอ', `<span class="num">${reqDays(c)} วัน = ${baht(reqAmount(c))}</span>`)}
+      ${kv('ยอดที่ขอ', `<span class="num">${reqDays(c)} วัน × ${claimRate(c).toLocaleString('th-TH')} = ${baht(reqAmount(c))}</span><br><span class="small ${overBase(c) ? '' : 'muted'}">${overBase(c) ? `<span class="pill sign">ขอเกินฐาน</span> ${BASIS[c.basis].label}` : 'อัตรามาตรฐาน'}</span>`)}
       ${kv('บัญชีรับเงิน', `${esc(c.bank.name)} <span class="num">${esc(c.bank.acct)}</span><br><span class="muted small">${esc(c.holder)}</span>`)}
     </dl>
-    <div class="dchips" aria-label="เอกสาร">${DOCS.map(d => `<span class="dchip ${c.docs[d.id] ? '' : 'miss'}" title="${esc(c.docs[d.id] || 'ยังไม่มี')}">${c.docs[d.id] ? '✓' : '✕'} ${esc(d.label)}</span>`).join('')}</div>
+    <div class="dchips" aria-label="เอกสาร">${docsFor(c.basis).map(d => `<span class="dchip ${c.docs[d.id] ? '' : 'miss'}" title="${esc(c.docs[d.id] || 'ยังไม่มี')}">${c.docs[d.id] ? '✓' : '✕'} ${esc(d.label)}</span>`).join('')}</div>
   </div>
   ${boAction(c)}
   <div class="card" style="gap:8px"><details class="fold" style="border:0;padding:0"><summary>ประวัติการดำเนินการ (${c.history.length}) · ล่าสุด: ${esc(c.history[c.history.length - 1].text)}</summary>
@@ -1043,7 +1082,7 @@ function boDetail(c) {
 }
 
 function chainHTML(c) {
-  const need = requiredStep(c.approvedAmount);
+  const need = stepNeeded(c);
   return `<div class="chain">${TIERS.map(t => {
     const a = c.approvals.find(x => x.step === t.step);
     const cls = t.step > need ? 'skip' : a ? 'ok' : t.step === c.approvals.length + 1 ? 'next' : '';
@@ -1055,18 +1094,18 @@ function boAction(c) {
   const t = UI.t;
   const errBox = UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : '';
   if (c.status === 'SUBMITTED') {
-    const missing = DOCS.filter(d => !c.docs[d.id]);
+    const missing = docsFor(c.basis).filter(d => !c.docs[d.id]);
     return `<div class="card"><h3>ตรวจเอกสาร</h3>${errBox}
-      ${missing.length ? `<div class="alert warn"><span class="ico">!</span><span>ยังขาด: ${missing.map(d => esc(d.label)).join(', ')}</span></div>` : `<div class="alert ok"><span class="ico">✓</span><span>เอกสารครบ ${DOCS.length} รายการ</span></div>`}
+      ${missing.length ? `<div class="alert warn"><span class="ico">!</span><span>ยังขาด: ${missing.map(d => esc(d.label)).join(', ')}</span></div>` : `<div class="alert ok"><span class="ico">✓</span><span>เอกสารครบ ${docsFor(c.basis).length} รายการ</span></div>`}
       <div class="row"><button class="btn primary" data-a="boDocsOk" ${missing.length ? 'disabled' : ''}>เอกสารครบ ส่งพิจารณาวงเงิน</button><button class="btn ghost" data-a="boToggleNeed">ขอเอกสารเพิ่ม</button></div>
       ${t.needOpen ? `<div class="flat"><span class="small"><b>เลือกเอกสารที่ต้องการ</b></span>
-        ${DOCS.map(d => `<label class="check"><input type="checkbox" data-t="need_${d.id}" ${t['need_' + d.id] ? 'checked' : ''}><span>${esc(d.label)}</span></label>`).join('')}
+        ${docsFor(c.basis).map(d => `<label class="check"><input type="checkbox" data-t="need_${d.id}" ${t['need_' + d.id] ? 'checked' : ''}><span>${esc(d.label)}</span></label>`).join('')}
         <div class="field"><label for="bo-note">ข้อความถึงผู้เรียกร้อง</label><textarea class="input" id="bo-note" data-t="note" placeholder="เช่น รูปบัตรประชาชนไม่ชัด กรุณาถ่ายใหม่">${esc(t.note || '')}</textarea></div>
         <button class="btn primary sm" data-a="boNeed" style="align-self:flex-start">ส่งคำขอเอกสาร</button></div>` : ''}</div>`;
   }
   if (c.status === 'UNDER_REVIEW') {
-    const rd = reqDays(c), r = RATES[c.type].rate;
-    const ad = t.adays ?? rd, amt = (Number(ad) || 0) * r, need = requiredStep(amt);
+    const rd = reqDays(c), base = RATES[c.type].rate, cr = claimRate(c);
+    const ad = t.adays ?? rd, ar = Number(t.arate ?? cr) || 0, amt = (Number(ad) || 0) * ar, need = stepNeeded(c, amt);
     const appeal = c.history.slice().reverse().find(h => h.text.startsWith('ขอทบทวน'));
     return `<div class="card"><h3>พิจารณาวงเงิน</h3>${errBox}
       ${c.appealCount && appeal ? `<div class="alert info"><span class="ico">i</span><span><b>ผู้เรียกร้องขอทบทวน:</b> ${esc(appeal.text.replace(/^ขอทบทวน:\s*/, ''))}</span></div>` : ''}
@@ -1074,8 +1113,11 @@ function boAction(c) {
       ${rd > 30 ? `<div class="alert warn"><span class="ico">!</span><span>ระยะเวลาซ่อม ${rd} วัน นานกว่าปกติ ควรตรวจสาเหตุ</span></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="bo-days">จำนวนวันที่อนุมัติ</label><input class="input num" type="number" id="bo-days" data-t="adays" min="0" max="${rd}" value="${esc(ad)}"><span class="hint">ขอมา ${rd} วัน</span></div>
-        <div class="field"><label>อัตราต่อวัน</label><div class="input num" style="background:var(--sunk)">${r.toLocaleString('th-TH')} บาท</div></div>
+        ${overBase(c) ? `<div class="field"><label for="bo-rate">อัตราที่อนุมัติต่อวัน (บาท)</label><input class="input num" type="number" id="bo-rate" data-t="arate" min="${base}" max="${cr}" value="${esc(t.arate ?? cr)}"><span class="hint">ขอมา ${cr.toLocaleString('th-TH')} · ฐาน ${base.toLocaleString('th-TH')}</span></div>`
+          : `<div class="field"><label>อัตราต่อวัน</label><div class="input num" style="background:var(--sunk)">${base.toLocaleString('th-TH')} บาท</div></div>`}
       </div>
+      ${overBase(c) ? `<div class="alert warn"><span class="ico">!</span><span><b>ขอเกินฐาน: ${BASIS[c.basis].label}</b> ${cr.toLocaleString('th-TH')} บาท/วัน (ฐาน ${base.toLocaleString('th-TH')}) · ตรวจ${BASIS[c.basis].doc} ถ้าหลักฐานไม่พอให้จ่ายตามอัตราฐาน · ต้องอนุมัติอย่างน้อย Step 2
+        <br><button class="btn ghost sm" style="margin-top:6px" data-a="boBaseRate">หลักฐานไม่พอ → ใช้อัตราฐาน ${base.toLocaleString('th-TH')} บาท/วัน</button></span></div>` : ''}
       <div class="est" id="boEst"><span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span></div>
       <div class="field"><label for="bo-rcode">เหตุผลที่ปรับลด <span class="muted small">(จำเป็นถ้าน้อยกว่าที่ขอ)</span></label>
         <select class="input" id="bo-rcode" data-t="rcode"><option value="">ไม่ได้ปรับลด</option>${Object.entries(REASONS).map(([k, v]) => `<option value="${k}" ${t.rcode === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
@@ -1085,7 +1127,7 @@ function boAction(c) {
   if (c.status === 'PENDING_APPROVAL') {
     const next = TIERS[c.approvals.length];
     return `<div class="card"><h3>สายอนุมัติวงเงิน</h3>
-      <div class="row between"><span>ยอดเสนอ <b class="num">${baht(c.approvedAmount)}</b> <span class="muted small">(${c.approvedDays} วัน × ${RATES[c.type].rate.toLocaleString('th-TH')})</span></span></div>
+      <div class="row between"><span>ยอดเสนอ <b class="num">${baht(c.approvedAmount)}</b> <span class="muted small">(${c.approvedDays} วัน × ${apRate(c).toLocaleString('th-TH')})</span></span></div>
       ${c.adjustReason ? `<p class="small"><b>เหตุผลปรับลด:</b> ${esc(c.adjustReason)}</p>` : ''}
       ${chainHTML(c)}
       <div class="row"><button class="btn primary" data-a="boApprove">อนุมัติในฐานะ Step ${next.step} (${esc(next.who)})</button><button class="btn danger" data-a="boReturn">ตีกลับให้พิจารณาใหม่</button></div></div>`;
@@ -1121,7 +1163,7 @@ const idChips = list => list.slice(0, 6).map(c => `<button class="idchip" data-a
 function repairRows(cases) {
   const rows = cases.filter(c => c.repairOut).map(c => {
     const g = garageOf(c), sev = claimOf(c).sev, std = SEV[sev].std, d = reqDays(c);
-    const pay = c.approvedDays ?? d, rate = RATES[c.type].rate;
+    const pay = c.approvedDays ?? d, rate = apRate(c);
     return { c, g, sev, std, d, rti: d / std, on: c.expectedOut ? c.repairOut <= c.expectedOut : d <= std,
       excess: Math.max(0, pay - std) * rate, lou: c.approvedAmount ?? d * rate, repair: c.repairCost || 0 };
   });
@@ -1147,7 +1189,7 @@ function renderReport() {
 
   /* --- alerts --- */
   const overdue = open.filter(c => SLA[c.status] && ageD(c) > SLA[c.status]);
-  const step3 = all.filter(c => c.status === 'PENDING_APPROVAL' && requiredStep(c.approvedAmount) === 3 && c.approvals.length === 2);
+  const step3 = all.filter(c => c.status === 'PENDING_APPROVAL' && stepNeeded(c) === 3 && c.approvals.length === 2);
   const nearLine = all.filter(c => c.approvedAmount && c.approvedAmount < reqAmount(c) && [5000, 20000].some(L => c.approvedAmount <= L && c.approvedAmount > L * 0.9 && reqAmount(c) > L));
   const byAcct = {}; all.forEach(c => (byAcct[c.bank.acct] = byAcct[c.bank.acct] || []).push(c));
   const dupAcct = Object.values(byAcct).filter(a => a.length > 1).flat();
@@ -1188,7 +1230,7 @@ function renderReport() {
 
   /* --- approval steps --- */
   const appr = TIERS.map(tr => {
-    const waiting = all.filter(c => c.status === 'PENDING_APPROVAL' && c.approvals.length === tr.step - 1 && requiredStep(c.approvedAmount) >= tr.step);
+    const waiting = all.filter(c => c.status === 'PENDING_APPROVAL' && c.approvals.length === tr.step - 1 && stepNeeded(c) >= tr.step);
     const durs = []; all.forEach(c => { const a = c.approvals.find(x => x.step === tr.step); if (!a || Date.parse(a.at) < from) return;
       const prev = tr.step === 1 ? c.proposedAt : c.approvals.find(x => x.step === tr.step - 1)?.at; if (prev) durs.push((Date.parse(a.at) - Date.parse(prev)) / 36e5); });
     return { tr, waiting, n: durs.length, hrs: durs.length ? sum(durs, x => x) / durs.length : 0 };
@@ -1352,6 +1394,8 @@ function buildReport(kind) {
     sections.push({ sh:'แยกรายวัน', h:'แยกรายวัน', cols:['วันที่','คำร้องใหม่','จ่าย (เคส)','ยอดจ่าย (บาท)'], num:[1, 2, 3], rows: days.map(t => { const e = t + 864e5, p = paidC.filter(c => Date.parse(c.payment.at) >= t && Date.parse(c.payment.at) < e);
       return [fmtD(localISO(new Date(t))), subM.filter(c => subAt(c) >= t && subAt(c) < e).length, p.length, sum(p, c => c.approvedAmount)]; }).filter(r => r[1] || r[2]) });
     sections.push({ sh:'ประเภทรถ', h:'แยกตามประเภทรถ (เคสที่จ่ายในเดือน)', cols:['ประเภทรถ','เคส','วันเฉลี่ย','ยอดรวม (บาท)'], num:[1, 2, 3], rows: Object.entries(RATES).map(([k, v]) => { const l = paidC.filter(c => c.type === k); return [v.label, l.length, l.length ? +avg(l, c => c.approvedDays).toFixed(1) : '–', sum(l, c => c.approvedAmount)]; }) });
+    sections.push({ sh:'วิธีคิด', h:'แยกตามวิธีคิดค่าขาดประโยชน์ (เคสที่จ่ายในเดือน)', cols:['วิธีคิด','เคส','ยอดขอ (บาท)','ยอดจ่าย (บาท)','ได้ตามที่ขอ (%)'], num:[1, 2, 3, 4],
+      rows: Object.entries(BASIS).map(([k, v]) => { const l = paidC.filter(c => (c.basis || 'base') === k), rq = sum(l, c => reqAmount(c)), ap = sum(l, c => c.approvedAmount); return [v.label, l.length, rq, ap, rq ? Math.round(ap / rq * 100) : '–']; }).filter(r => r[1]) });
     const rr = repairRows(paidC);
     sections.push({ sh:'อู่ห้าง vs อู่นอก', h:'อู่ห้าง เทียบ อู่นอก (เคสที่จ่ายในเดือน)', cols:['ประเภทอู่','เคส','วันซ่อมเฉลี่ย','RTI','ตรงนัด (%)','ค่าขาดประโยชน์ (บาท)','ส่วนเกินจากความล่าช้า (บาท)'], num:[1, 2, 3, 4, 5, 6],
       rows: Object.keys(GTYPE).map(tp => { const l = rr.filter(x => x.g.type === tp), g = garageScore(l); return [GTYPE[tp].long, g.n, g.n ? +g.days.toFixed(1) : '–', g.n ? +g.rti.toFixed(2) : '–', g.n ? Math.round(g.on * 100) : '–', Math.round(sum(l, x => x.lou)), Math.round(g.excess)]; }) });
@@ -1416,12 +1460,12 @@ const FLOW = {
   start: { t:'คู่กรณีเริ่มยื่นคำร้อง', who:'คู่กรณี', sla:'–', conds:['เข้าเว็บจากลิงก์/QR ที่พนักงานสำรวจภัยให้ หรือหน้าเว็บบริษัท'], pass:'ไปตรวจสิทธิ์ (CP1)', st:[] },
   CP1: { cp:1, t:'ตรวจสิทธิ์', who:'ระบบ (อัตโนมัติ)', sla:'ทันที', conds:['เลขเคลมมีในระบบ และตรงกับทะเบียนรถที่กรอก','ผู้ยื่นเป็นฝ่ายถูกตามผลสำรวจภัย','เคลม/รถคันนี้ยังไม่เคยยื่นค่าขาดประโยชน์','ยื่นภายใน 2 ปีนับแต่วันเกิดเหตุ'], pass:'ไปยืนยันตัวตน (CP2)', fail:'แสดงเหตุผลที่ยื่นไม่ได้ และช่องทางติดต่อ', st:[] },
   CP2: { cp:2, t:'ยืนยันตัวตน', who:'คู่กรณี + ระบบ', sla:'ทันที', conds:['เบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0','รหัส OTP 6 หลักถูกต้อง','ให้ความยินยอม PDPA'], pass:'ไปกรอกข้อมูลการซ่อม (CP3)', fail:'แจ้งข้อผิดพลาด ให้กรอกใหม่', st:[] },
-  CP3: { cp:3, t:'ข้อมูลและเอกสารครบ', who:'ระบบ (ตรวจในแบบฟอร์ม)', sla:'ทันที', conds:['เลือกอู่ (ถ้าเป็นอู่อื่น ต้องระบุชื่อและประเภท อู่ห้าง/อู่นอก)','วันเข้าซ่อมไม่ก่อนวันเกิดเหตุ และไม่เกินวันนี้','วันรับรถไม่ก่อนวันเข้าซ่อม และไม่เกินวันนี้ + 120 วัน','เลขบัญชี 10–12 หลัก ชื่อบัญชีเป็นของเจ้าของรถ','แนบเอกสารบังคับครบ (ใบส่งมอบรถส่งทีหลังได้)','รับรองว่าข้อมูลเป็นความจริง'], pass:'ไปตรวจสถานะรถ (CP4)', fail:'ชี้ช่องที่ต้องแก้ ให้แก้ในแบบฟอร์ม', st:[] },
+  CP3: { cp:3, t:'ข้อมูลและเอกสารครบ', who:'ระบบ (ตรวจในแบบฟอร์ม)', sla:'ทันที', conds:['เลือกอู่ (ถ้าเป็นอู่อื่น ต้องระบุชื่อและประเภท อู่ห้าง/อู่นอก)','วันเข้าซ่อมไม่ก่อนวันเกิดเหตุ และไม่เกินวันนี้','วันรับรถไม่ก่อนวันเข้าซ่อม และไม่เกินวันนี้ + 120 วัน','เลขบัญชี 10–12 หลัก ชื่อบัญชีเป็นของเจ้าของรถ','วิธีคิด: อัตรามาตรฐาน (ค่าเริ่มต้น) หรือขอเกินฐาน (ค่าเช่ารถ / รายได้ที่ขาด / ค่าเดินทาง) ต้องมากกว่าฐานและไม่เกินเพดาน 3 เท่าต่อวัน','แนบเอกสารบังคับครบ (ใบส่งมอบรถส่งทีหลังได้ · ขอเกินฐานต้องแนบหลักฐานค่าใช้จ่าย/รายได้)','รับรองว่าข้อมูลเป็นความจริง'], pass:'ไปตรวจสถานะรถ (CP4)', fail:'ชี้ช่องที่ต้องแก้ ให้แก้ในแบบฟอร์ม', st:[] },
   CP4: { cp:4, t:'รับรถคืนแล้วหรือยัง', who:'ระบบ', sla:'–', conds:['วันที่รับรถคืน ≤ วันนี้ และแนบใบส่งมอบรถแล้ว'], pass:'บันทึกคำร้อง สถานะ "ยื่นคำร้องแล้ว"', fail:'สถานะ "รอใบส่งมอบรถ" คู่กรณีกลับมาส่งวันที่รับรถจริงพร้อมใบส่งมอบรถ', st:['WAITING_REPAIR'] },
   S_SUB: { t:'ยื่นคำร้องแล้ว', who:'ระบบ', sla:'–', conds:['ออกเลขคำร้อง แจ้งทาง SMS','เข้าคิวตรวจเอกสารของเจ้าหน้าที่'], pass:'ไปตรวจเอกสาร (CP5)', st:['SUBMITTED'] },
   CP5: { cp:5, t:'ตรวจเอกสาร', who:'เจ้าหน้าที่สินไหม', sla:`${SLA.SUBMITTED} วันทำการ`, conds:['เอกสาร 5 รายการครบและอ่านได้ชัด','ชื่อในบัตร ทะเบียนรถ และบัญชีตรงกับเจ้าของรถในเคลม','วันที่ในใบรับรถ/ใบส่งมอบรถตรงกับที่กรอก'], pass:'ส่งพิจารณาวงเงิน (CP6)', fail:'สถานะ "ขอเอกสารเพิ่ม" ระบุรายการและข้อความถึงคู่กรณี เมื่อส่งแล้วกลับมาตรวจใหม่', st:['SUBMITTED','NEED_INFO'] },
-  CP6: { cp:6, t:'พิจารณาวงเงิน', who:'เจ้าหน้าที่สินไหม', sla:`${SLA.UNDER_REVIEW} วันทำการ`, conds:['ยอด = จำนวนวันที่อนุมัติ × อัตราต่อวันตามประเภทรถ','เทียบวันซ่อมจริงกับวันมาตรฐานตามระดับความเสียหาย (RTI เกิน 1.30 ต้องตรวจสาเหตุ)','อนุมัติได้ 1 วันจนถึงจำนวนวันที่ขอ','ถ้าลดวัน ต้องเลือกเหตุผลการปรับลด (คู่กรณีเห็นเหตุผลนี้)'], pass:'เสนอยอดเข้าสายอนุมัติ (CP7)', st:['UNDER_REVIEW'] },
-  CP7: { cp:7, t:'สายอนุมัติตามวงเงิน', who:'Step 1 เจ้าหน้าที่ · Step 2 หัวหน้าทีม · Step 3 ผู้จัดการ', sla:`${SLA.PENDING_APPROVAL} วันต่อขั้น`, conds:['ยอดไม่เกิน 5,000 บาท: Step 1','5,001–20,000 บาท: Step 1 → Step 2','เกิน 20,000 บาท: Step 1 → Step 2 → Step 3','ผู้เสนอยอดต้องไม่ใช่ผู้อนุมัติ (maker–checker)'], pass:'อนุมัติครบทุกขั้นที่ต้องการ แจ้งผลให้คู่กรณี (CP8)', fail:'ผู้อนุมัติตีกลับ ให้พิจารณายอดใหม่ (CP6)', st:['PENDING_APPROVAL'] },
+  CP6: { cp:6, t:'พิจารณาวงเงิน', who:'เจ้าหน้าที่สินไหม', sla:`${SLA.UNDER_REVIEW} วันทำการ`, conds:['ยอด = จำนวนวันที่อนุมัติ × อัตราต่อวันตามประเภทรถ','เทียบวันซ่อมจริงกับวันมาตรฐานตามระดับความเสียหาย (RTI เกิน 1.30 ต้องตรวจสาเหตุ)','อนุมัติได้ 1 วันจนถึงจำนวนวันที่ขอ','ขอเกินฐาน: ตรวจหลักฐาน ถ้าไม่พอให้จ่ายตามอัตรามาตรฐาน','ถ้าลดวันหรือลดอัตรา ต้องเลือกเหตุผลการปรับลด (คู่กรณีเห็นเหตุผลนี้)'], pass:'เสนอยอดเข้าสายอนุมัติ (CP7)', st:['UNDER_REVIEW'] },
+  CP7: { cp:7, t:'สายอนุมัติตามวงเงิน', who:'Step 1 เจ้าหน้าที่ · Step 2 หัวหน้าทีม · Step 3 ผู้จัดการ', sla:`${SLA.PENDING_APPROVAL} วันต่อขั้น`, conds:['ยอดไม่เกิน 5,000 บาท: Step 1','5,001–20,000 บาท: Step 1 → Step 2','เกิน 20,000 บาท: Step 1 → Step 2 → Step 3','คำร้องที่ขอเกินฐาน: อย่างน้อย Step 2 เสมอ','ผู้เสนอยอดต้องไม่ใช่ผู้อนุมัติ (maker–checker)'], pass:'อนุมัติครบทุกขั้นที่ต้องการ แจ้งผลให้คู่กรณี (CP8)', fail:'ผู้อนุมัติตีกลับ ให้พิจารณายอดใหม่ (CP6)', st:['PENDING_APPROVAL'] },
   CP8: { cp:8, t:'คู่กรณีตอบรับผลพิจารณา', who:'คู่กรณี', sla:'7 วัน', conds:['อ่านหนังสือยินยอม: เมื่อรับเงินแล้วจะไม่เรียกร้องค่าขาดประโยชน์เพิ่มจากเหตุนี้','ลงนามด้วย OTP','ขอทบทวนได้ 1 ครั้ง ครั้งต่อไปแนะนำ คปภ. 1186'], pass:'สถานะ "ตอบรับแล้ว" ส่งฝ่ายการเงิน', fail:'ขอทบทวน → กลับไปพิจารณาวงเงิน (CP6) · ไม่ตอบใน 7 วัน → แจ้งเตือน 2 ครั้ง', st:['OFFERED'] },
   ACC: { t:'ลงนามตอบรับแล้ว', who:'คู่กรณี', sla:'–', conds:['บันทึกเวลาลงนามและเบอร์ที่ใช้ยืนยัน OTP'], pass:'ไปตรวจบัญชีก่อนโอน (CP9)', st:['ACCEPTED'] },
   CP9: { cp:9, t:'ตรวจบัญชีและสั่งโอน', who:'ฝ่ายการเงิน', sla:`${SLA.ACCEPTED} วันทำการ`, conds:['ชื่อบัญชีตรงกับเจ้าของรถตามทะเบียน','บัญชีนี้ไม่ซ้ำกับคำร้องอื่น','ถ้าแก้บัญชีหลังอนุมัติ ต้องยืนยัน OTP ใหม่และตรวจซ้ำ','ส่งคำสั่งโอนผ่าน API ธนาคาร พร้อม idempotency key กันโอนซ้ำ'], pass:'ธนาคารประมวลผลการโอน (CP10)', st:['ACCEPTED'] },
@@ -1580,7 +1624,7 @@ function renderModal() {
         <tr><td>รถยนต์ทะเบียน</td><td>${esc(cl.plate)} ${esc(cl.province)}</td></tr>
         <tr><td>วันที่เกิดเหตุ</td><td>${fmtD(cl.accident)}</td></tr>
         <tr><td>ระยะเวลาซ่อม</td><td>${fmtD(c.repairIn)} – ${fmtD(c.repairOut)}</td></tr>
-        <tr><td>จำนวนวันที่อนุมัติ</td><td>${c.approvedDays} วัน × ${RATES[c.type].rate.toLocaleString('th-TH')} บาท</td></tr>
+        <tr><td>จำนวนวันที่อนุมัติ</td><td>${c.approvedDays} วัน × ${apRate(c).toLocaleString('th-TH')} บาท</td></tr>
         <tr><td>จำนวนเงิน</td><td><b>${baht(c.approvedAmount)}</b></td></tr>
         <tr><td>โอนเข้าบัญชี</td><td>${esc(c.bank.name)} ${maskAcct(c.bank.acct)} (${esc(c.holder)})</td></tr>
         <tr><td>วันที่โอน</td><td>${fmtDT(c.payment.at)}</td></tr>
@@ -1619,11 +1663,17 @@ function wizValidate() {
     if (!f.repairOut) return 'กรอกวันที่รับรถคืน หรือวันที่อู่นัดรับรถ';
     if (f.repairOut < f.repairIn) return 'วันที่รับรถคืนต้องไม่ก่อนวันที่รถเข้าซ่อม';
     if (f.repairOut > plusDays(120)) return 'วันที่อู่นัดรับรถต้องไม่เกิน 120 วันจากวันนี้';
+    if (f.basis !== 'base') {
+      const v = Number(f.dailyClaim), base = RATES[w.claim.type].rate, cap = capOf(w.claim.type);
+      if (!v) return `กรอก${BASIS[f.basis].ask}`;
+      if (v <= base) return `ยอดไม่เกินอัตรามาตรฐาน ${base.toLocaleString('th-TH')} บาท/วัน เลือก "อัตรามาตรฐาน" ได้เลย ไม่ต้องแนบหลักฐาน`;
+      if (v > cap) return `เกินเพดาน ${cap.toLocaleString('th-TH')} บาท/วัน`;
+    }
     if (!f.bank) return 'เลือกธนาคาร';
     if (!/^\d{10,12}$/.test(f.acct)) return 'เลขบัญชีต้องเป็นตัวเลข 10–12 หลัก';
   }
   if (w.step === 3) {
-    const miss = DOCS.filter(d => !(d.id === 'repairOut' && isFuture(f.repairOut)) && !w.docs[d.id]);
+    const miss = docsFor(f.basis).filter(d => !(d.id === 'repairOut' && isFuture(f.repairOut)) && !w.docs[d.id]);
     if (miss.length) return 'ยังขาดเอกสาร: ' + miss.map(d => d.label).join(', ');
   }
   return '';
@@ -1645,7 +1695,7 @@ function submit() {
   S.seq += 1;
   const id = 'LU-2569-' + String(S.seq).padStart(4, '0');
   const pending = isFuture(f.repairOut);
-  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:pending ? '' : f.repairOut, expectedOut:pending ? f.repairOut : '',
+  const k = { id, claimNo:c.claimNo, phone:f.phone, type:c.type, repairIn:f.repairIn, repairOut:pending ? '' : f.repairOut, expectedOut:pending ? f.repairOut : '', basis:f.basis, dailyClaim:f.basis !== 'base' ? Number(f.dailyClaim) : undefined,
     garageId:f.garage === 'other' ? null : f.garage, garageName:f.garage === 'other' ? f.garageName.trim() : undefined, garageType:f.garage === 'other' ? f.garageType : undefined, bank:{ name:f.bank, acct:f.acct }, holder:c.owner,
     docs:{ ...w.docs }, status: pending ? 'WAITING_REPAIR' : 'SUBMITTED', statusAt:new Date().toISOString(), approvals:[], appealCount:0, history:[] };
   log(k, pending ? `ยื่นคำร้อง (รถยังซ่อมไม่เสร็จ อู่นัดรับรถ ${fmtD(f.repairOut)})` : 'ยื่นคำร้อง', 'claimant');
@@ -1653,7 +1703,7 @@ function submit() {
   S.cases.unshift(k); save();
   UI.caseId = id; UI.page = 'done'; UI.wiz = newWiz();
 }
-const sampleName = id => ({ idcard:'IMG_บัตรประชาชน.jpg', carbook:'IMG_ทะเบียนรถ.jpg', bankbook:'IMG_สมุดบัญชี.jpg', repairIn:'ใบรับรถ_อู่ช่างเอก.pdf', repairOut:'ใบส่งมอบรถ_อู่ช่างเอก.pdf' }[id]);
+const sampleName = id => ({ idcard:'IMG_บัตรประชาชน.jpg', carbook:'IMG_ทะเบียนรถ.jpg', bankbook:'IMG_สมุดบัญชี.jpg', repairIn:'ใบรับรถ_อู่ช่างเอก.pdf', repairOut:'ใบส่งมอบรถ_อู่ช่างเอก.pdf', evidence:'หลักฐาน_ค่าใช้จ่ายรายวัน.pdf' }[id]);
 
 const A = {
   view: b => { UI.view = b.dataset.v; UI.err = ''; UI.t = {}; try { localStorage.setItem(KEY + '-view', UI.view); } catch (e) {} },
@@ -1667,7 +1717,7 @@ const A = {
   wizNext: () => { const e = wizValidate(); UI.wiz.err = e; if (!e) UI.wiz.step += 1; },
   sendOtp: () => { const p = UI.wiz.f.phone; if (!/^0\d{9}$/.test(p)) { UI.wiz.err = 'กรอกเบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0'; return; } UI.wiz.err = ''; UI.wiz.otpSent = true; },
   sampleDoc: b => { if (b.dataset.doc) UI.wiz.docs[b.dataset.doc] = sampleName(b.dataset.doc); else UI.t['doc_' + b.dataset.cdoc] = sampleName(b.dataset.cdoc); },
-  sampleAll: () => DOCS.forEach(d => { if (!(d.id === 'repairOut' && isFuture(UI.wiz.f.repairOut))) UI.wiz.docs[d.id] = sampleName(d.id); }),
+  sampleAll: () => docsFor(UI.wiz.f.basis).forEach(d => { if (!(d.id === 'repairOut' && isFuture(UI.wiz.f.repairOut))) UI.wiz.docs[d.id] = sampleName(d.id); }),
   submit: () => submit(),
   copy: b => { const v = b.dataset.v; try { navigator.clipboard.writeText(v).then(() => { b.textContent = 'คัดลอกแล้ว'; }, () => {}); } catch (e) {} return false; },
   openCase: b => { UI.view = 'claimant'; UI.caseId = b.dataset.id; UI.page = 'case'; UI.err = ''; UI.t = {}; UI.wiz.err = ''; },
@@ -1730,19 +1780,22 @@ const A = {
   boPropose: () => {
     const c = curBO(), rd = reqDays(c), ad = Number(UI.t.adays ?? rd), reason = (UI.t.reason || '').trim();
     if (!Number.isInteger(ad) || ad < 1 || ad > rd) { UI.err = `จำนวนวันต้องอยู่ระหว่าง 1–${rd}`; return; }
-    const rcode = UI.t.rcode || '';
-    if (ad < rd && !rcode) { UI.err = 'อนุมัติน้อยกว่าที่ขอ ต้องเลือกเหตุผลที่ปรับลด'; return; }
+    const rcode = UI.t.rcode || '', cr = claimRate(c), base = RATES[c.type].rate, ar = Number(UI.t.arate ?? cr);
+    if (!(ar >= base && ar <= cr)) { UI.err = `อัตราที่อนุมัติต้องอยู่ระหว่าง ${base.toLocaleString('th-TH')}–${cr.toLocaleString('th-TH')} บาท/วัน`; return; }
+    const cut = ad < rd || ar < cr;
+    if (cut && !rcode) { UI.err = 'อนุมัติน้อยกว่าที่ขอ ต้องเลือกเหตุผลที่ปรับลด'; return; }
     if (rcode === 'other' && reason.length < 5) { UI.err = 'เลือก "อื่น ๆ" ต้องกรอกรายละเอียด'; return; }
-    const r = RATES[c.type].rate; c.approvedDays = ad; c.approvedAmount = ad * r; c.approvals = [];
-    if (ad < rd) { c.reasonCode = rcode; c.adjustReason = REASONS[rcode] + (reason ? ' — ' + reason : ''); } else { delete c.adjustReason; delete c.reasonCode; }
+    const r = ar; c.approvedDays = ad; c.approvedRate = ar; c.approvedAmount = ad * ar; c.approvals = [];
+    if (cut) { c.reasonCode = rcode; c.adjustReason = REASONS[rcode] + (reason ? ' — ' + reason : ''); } else { delete c.adjustReason; delete c.reasonCode; }
     c.proposedAt = new Date().toISOString();
     setStatus(c, 'PENDING_APPROVAL');
-    log(c, `เสนอยอด ${ad} วัน × ${r.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${requiredStep(c.approvedAmount)})`, 'company'); save(); UI.t = {}; UI.err = '';
+    log(c, `เสนอยอด ${ad} วัน × ${r.toLocaleString('th-TH')} = ${baht(c.approvedAmount)} (ต้องอนุมัติถึง Step ${stepNeeded(c)})`, 'company'); save(); UI.t = {}; UI.err = '';
   },
+  boBaseRate: () => { const c = curBO(); UI.t.arate = RATES[c.type].rate; UI.t.rcode = 'evidence'; },
   boApprove: () => {
     const c = curBO(), t = TIERS[c.approvals.length];
     c.approvals.push({ step:t.step, who:t.who, at:new Date().toISOString() });
-    if (c.approvals.length >= requiredStep(c.approvedAmount)) { setStatus(c, 'OFFERED'); log(c, `Step ${t.step} อนุมัติ (${t.who}) แจ้งผลพิจารณาแล้ว`, 'company'); }
+    if (c.approvals.length >= stepNeeded(c)) { setStatus(c, 'OFFERED'); log(c, `Step ${t.step} อนุมัติ (${t.who}) แจ้งผลพิจารณาแล้ว`, 'company'); }
     else log(c, `Step ${t.step} อนุมัติ (${t.who})`, 'company');
     save();
   },
@@ -1771,11 +1824,11 @@ document.addEventListener('input', e => {
   const el = e.target, val = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.w) {
     UI.wiz.f[el.dataset.w] = val;
-    if (['repairIn', 'repairOut'].includes(el.dataset.w) && $('#est')) { const f = UI.wiz.f; $('#est').innerHTML = estBox(UI.wiz.claim.type, f.repairIn, f.repairOut); }
+    if (['repairIn', 'repairOut', 'dailyClaim'].includes(el.dataset.w) && $('#est')) { const f = UI.wiz.f; $('#est').innerHTML = estBox(UI.wiz.claim.type, f.repairIn, f.repairOut, false, wizRate()); if ($('#wizside')) $('#wizside').innerHTML = wizSide(); }
   } else if (el.dataset.t) {
     UI.t[el.dataset.t] = val;
-    if (el.dataset.t === 'adays' && $('#boEst')) {
-      const c = curBO(), amt = (Number(val) || 0) * RATES[c.type].rate, need = requiredStep(amt);
+    if ((el.dataset.t === 'adays' || el.dataset.t === 'arate') && $('#boEst')) {
+      const c = curBO(), amt = (Number(UI.t.adays ?? reqDays(c)) || 0) * (Number(UI.t.arate ?? claimRate(c)) || 0), need = stepNeeded(c, amt);
       $('#boEst').innerHTML = `<span class="small" style="color:var(--sign-ink)">ยอดเสนออนุมัติ</span><span class="amt">${baht(amt)}</span><span class="formula">ต้องอนุมัติถึง Step ${need} · ${esc(TIERS[need - 1].role)}</span>`;
     }
   } else if (el.dataset.r) { UI[el.dataset.r] = el.value;
@@ -1795,6 +1848,7 @@ document.addEventListener('change', e => {
     if (el.dataset.cdoc) UI.t['doc_' + el.dataset.cdoc] = el.files[0].name;
     render();
   } else if (el.dataset.w === 'repairOut' || el.dataset.w === 'repairIn') { UI.wiz.f[el.dataset.w] = el.value; render();
+  } else if (el.dataset.w === 'basis') { UI.wiz.f.basis = el.value; render();
   } else if (el.dataset.w === 'garage') { UI.wiz.f.garage = el.value; render();
   } else if (el.tagName === 'SELECT' && el.dataset.w) { UI.wiz.f[el.dataset.w] = el.value; }
   else if (el.tagName === 'SELECT' && el.dataset.t) { UI.t[el.dataset.t] = el.value; }
