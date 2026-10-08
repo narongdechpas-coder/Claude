@@ -1,0 +1,1291 @@
+<title>ป๊อกเด้ง วงเที่ยงคืน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;600&family=Mitr:wght@400;500;600&display=swap">
+<style>
+  /* Layout: full-bleed first-person 3D table; HUD pinned top, action bar pinned bottom, labels float over the hands */
+  :root {
+    --ink: #0d0a09;
+    --panel: rgba(20, 15, 13, 0.78);
+    --line: rgba(217, 164, 65, 0.3);
+    --brass: #d9a441;
+    --brass-hi: #f1cf7a;
+    --cream: #f3e6cf;
+    --muted: #a8957c;
+    --lacquer: #b3242f;
+    --jade: #4fc98a;
+    --f-display: "Mitr", "Bai Jamjuree", system-ui, sans-serif;
+    --f-body: "Bai Jamjuree", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; margin: 0; background: var(--ink); color: var(--cream); font-family: var(--f-body); overflow: hidden; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 3px; }
+  button:disabled { cursor: default; opacity: 0.45; }
+
+  #app { position: fixed; inset: 0; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+  #c { display: block; width: 100%; height: 100%; }
+
+  #vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(179, 36, 47, 0.6) 100%); }
+  #vignette.hit { animation: hit 1.1s ease-out; }
+  @keyframes hit { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+
+  .hand-label { position: absolute; left: 0; top: 0; padding: 5px 11px; border-radius: 4px;
+    background: rgba(13, 10, 9, 0.78); border: 1px solid var(--line); color: var(--cream);
+    font: 500 15px/1.2 var(--f-display); white-space: nowrap; pointer-events: none; opacity: 0;
+    transition: opacity 0.25s, border-color 0.25s, color 0.25s; font-variant-numeric: tabular-nums; }
+  .hand-label.show { opacity: 1; }
+  .hand-label .who { font: 400 11px/1 var(--f-body); letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 3px; }
+  .hand-label.win { border-color: var(--jade); color: #d4f7e3; box-shadow: 0 0 18px rgba(79, 201, 138, 0.35); }
+  .hand-label.lose { color: var(--muted); }
+  .hand-label.pok { border-color: var(--brass-hi); color: var(--brass-hi); animation: pop 0.6s cubic-bezier(.2,1.6,.4,1); }
+
+  .hud { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; display: flex; gap: 10px; flex-wrap: wrap; max-width: calc(100% - 200px); }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 14px; min-width: 112px; }
+  .stat .k { display: block; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+  .stat .v { display: block; font: 500 22px/1.15 var(--f-display); font-variant-numeric: tabular-nums; color: var(--brass-hi); }
+  .stat .r { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .tools { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; display: flex; gap: 6px; }
+  .tool { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 7px 11px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .tool svg { width: 16px; height: 16px; }
+  .tool[aria-pressed="false"] { color: var(--muted); }
+  .tool[aria-pressed="false"] .on-only { display: none; }
+  .tool[aria-pressed="true"] .off-only { display: none; }
+
+  .banner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; width: max-content; max-width: calc(100% - 32px); }
+  .banner.show { animation: banner 3.2s ease forwards; }
+  .banner .b-main { font: 600 clamp(44px, 11vw, 84px)/1 var(--f-display); letter-spacing: 0.02em; text-shadow: 0 4px 28px rgba(0,0,0,0.8); }
+  .banner .b-amt { font: 500 clamp(22px, 5vw, 34px)/1.2 var(--f-display); margin-top: 6px; font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0,0,0,0.9); }
+  .banner .b-sub { font-size: 15px; color: var(--cream); margin-top: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
+  .banner.win .b-main, .banner.win .b-amt { color: var(--brass-hi); }
+  .banner.lose .b-main, .banner.lose .b-amt { color: #ff8a8a; }
+  .banner.tie .b-main { color: var(--cream); }
+  .banner.pok .b-main { color: var(--brass-hi); }
+  @keyframes banner { 0% { opacity: 0; transform: translateX(-50%) scale(0.6); } 10% { opacity: 1; transform: translateX(-50%) scale(1.08); } 16% { transform: translateX(-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scale(1); } }
+  @keyframes pop { 0% { transform: var(--tf) scale(0.6); } 100% { transform: var(--tf) scale(1); } }
+
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to bottom, transparent, rgba(13, 10, 9, 0.88) 45%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .status { font: 400 16px/1.3 var(--f-display); text-align: center; min-height: 21px; text-shadow: 0 1px 8px #000; }
+  .status.warn { color: #ff9a9a; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; }
+  .hint { font-size: 12px; color: var(--muted); text-align: center; }
+
+  .chip { width: 58px; height: 58px; border-radius: 50%; border: 5px dashed var(--cream); background: var(--c);
+    font: 600 15px/1 var(--f-display); color: #fff; box-shadow: 0 0 0 2px var(--c), 0 4px 0 2px rgba(0,0,0,0.45), inset 0 0 0 7px var(--c), inset 0 0 0 9px rgba(255,255,255,0.35);
+    transition: transform 0.12s; }
+  .chip:not(:disabled):hover { transform: translateY(-3px); }
+  .chip:not(:disabled):active { transform: translateY(1px); }
+  .chip[data-v="10"] { --c: #2a5bb8; }
+  .chip[data-v="50"] { --c: #b3242f; }
+  .chip[data-v="100"] { --c: #1f6b45; }
+  .chip[data-v="500"] { --c: #1b1b22; border-color: var(--brass); color: var(--brass-hi); }
+
+  .act { border: 0; border-radius: 6px; padding: 13px 26px; font: 500 18px/1 var(--f-display); color: #1b1206;
+    background: linear-gradient(#ecc061, #b9852c); box-shadow: 0 4px 0 #6e4a14, 0 10px 26px rgba(0,0,0,0.5); transition: transform 0.1s, box-shadow 0.1s; }
+  .act:not(:disabled):active { transform: translateY(3px); box-shadow: 0 1px 0 #6e4a14, 0 6px 16px rgba(0,0,0,0.5); }
+  .act.red { color: #fff3ec; background: linear-gradient(#d23a44, #8f1d25); box-shadow: 0 4px 0 #4c0d12, 0 10px 26px rgba(0,0,0,0.5); }
+  .act.red:not(:disabled):active { box-shadow: 0 1px 0 #4c0d12, 0 6px 16px rgba(0,0,0,0.5); }
+  .act small { display: block; font: 400 12px/1 var(--f-body); margin-top: 5px; opacity: 0.8; }
+  .ghost { border: 1px solid var(--line); background: rgba(0,0,0,0.4); border-radius: 6px; padding: 11px 16px; font-size: 14px; }
+
+  .title { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 24px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+    background: radial-gradient(ellipse at 20% 85%, rgba(13,10,9,0.92) 0%, rgba(13,10,9,0.6) 45%, rgba(13,10,9,0.15) 80%); transition: opacity 0.8s; }
+  .title.gone { opacity: 0; pointer-events: none; }
+  .title-in { max-width: 520px; margin-left: clamp(0px, 5vw, 64px); }
+  .eyebrow { font-size: 12px; letter-spacing: 0.22em; color: var(--brass); }
+  .title h1 { font: 600 clamp(64px, 16vw, 128px)/0.95 var(--f-display); margin: 10px 0 4px; color: var(--brass-hi);
+    text-shadow: 0 0 40px rgba(217, 164, 65, 0.35), 0 4px 0 #6e4a14; text-wrap: balance; }
+  .title h2 { font: 400 clamp(22px, 5vw, 30px)/1.2 var(--f-display); margin: 0 0 16px; color: var(--cream); }
+  .title p { margin: 0 0 22px; color: var(--cream); font-size: 15px; line-height: 1.6; max-width: 46ch; }
+  .title .note { font-size: 12px; color: var(--muted); margin-top: 14px; }
+
+  .sheet { position: absolute; inset: 0; background: rgba(8, 6, 5, 0.72); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .sheet-in { background: #17110f; border: 1px solid var(--line); border-radius: 6px; max-width: 580px; width: 100%; max-height: 100%; overflow: auto; padding: 22px 22px 18px; }
+  .sheet h3 { font: 500 26px/1.2 var(--f-display); margin: 0 0 4px; color: var(--brass-hi); }
+  .sheet h4 { font: 500 16px/1.3 var(--f-display); margin: 18px 0 6px; color: var(--brass); }
+  .sheet p, .sheet li { font-size: 14px; line-height: 1.6; }
+  .sheet ul { margin: 0; padding-left: 20px; }
+  .sheet table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .sheet td { padding: 6px 4px; border-bottom: 1px solid rgba(217,164,65,0.15); }
+  .sheet td:last-child { text-align: right; color: var(--brass-hi); white-space: nowrap; font-family: var(--f-display); }
+  .sheet .close { float: right; }
+
+  @media (max-width: 560px) {
+    .hud { max-width: calc(100% - 32px); top: calc(56px + env(safe-area-inset-top, 0px)); }
+    .stat { min-width: 0; padding: 6px 10px; }
+    .stat .v { font-size: 18px; }
+    .chip { width: 50px; height: 50px; font-size: 13px; border-width: 4px; }
+    .act { padding: 12px 18px; font-size: 16px; }
+    .tool span.lbl { display: none; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .banner.show { animation-duration: 3.2s; }
+    .chip, .act { transition: none; }
+  }
+</style>
+
+<div id="app">
+  <canvas id="c" aria-label="โต๊ะป๊อกเด้งมุมมองบุคคลที่หนึ่ง"></canvas>
+  <div id="vignette"></div>
+  <div class="hand-label" id="lbl-dealer"><span class="who">เจ้ามือ</span><span class="t"></span></div>
+  <div class="hand-label" id="lbl-player"><span class="who">ไพ่ของคุณ</span><span class="t"></span></div>
+
+  <header class="hud">
+    <div class="stat"><span class="k">ในกระเป๋า</span><span class="v" id="purse">฿1,000</span><span class="r" id="record">ชนะ 0 · แพ้ 0 · เสมอ 0</span></div>
+    <div class="stat"><span class="k">เดิมพันตานี้</span><span class="v" id="betv">฿0</span></div>
+  </header>
+
+  <div class="tools">
+    <button class="tool" id="btn-rules" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1.5" width="10" height="13" rx="1.5"/><path d="M5.5 5h5M5.5 8h5M5.5 11h3"/></svg><span class="lbl">กติกา</span></button>
+    <button class="tool" id="btn-sound" type="button" aria-pressed="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="on-only" d="M11 5.5c1 .8 1 4.2 0 5M13 3.5c2 1.8 2 7.2 0 9"/><path class="off-only" d="M11 6l4 4M15 6l-4 4"/></svg><span class="lbl">เสียง</span></button>
+    <button class="tool" id="btn-music" type="button" aria-pressed="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 12V3l7-1.5V11"/><circle cx="4.5" cy="12" r="1.8" fill="currentColor"/><circle cx="11.5" cy="11" r="1.8" fill="currentColor"/><path class="off-only" d="M2 2l12 12"/></svg><span class="lbl">เพลง</span></button>
+  </div>
+
+  <div class="banner" id="banner"><div class="b-main"></div><div class="b-amt"></div><div class="b-sub"></div></div>
+
+  <footer class="bar">
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="row" id="row-bet">
+      <button class="chip" data-v="10" type="button" aria-label="เพิ่มชิป 10 บาท">10</button>
+      <button class="chip" data-v="50" type="button" aria-label="เพิ่มชิป 50 บาท">50</button>
+      <button class="chip" data-v="100" type="button" aria-label="เพิ่มชิป 100 บาท">100</button>
+      <button class="chip" data-v="500" type="button" aria-label="เพิ่มชิป 500 บาท">500</button>
+      <button class="ghost" id="btn-clear" type="button">เก็บชิปคืน</button>
+      <button class="act" id="btn-deal" type="button">แจกไพ่</button>
+    </div>
+    <div class="row" id="row-decide" hidden>
+      <button class="act red" id="btn-draw" type="button">จั่วไพ่<small>เพิ่มอีก 1 ใบ</small></button>
+      <button class="act" id="btn-stand" type="button">ไม่จั่ว<small>อยู่แค่ 2 ใบ</small></button>
+    </div>
+    <div class="row" id="row-broke" hidden>
+      <button class="act" id="btn-loan" type="button">ขอยืมทุนเจ้ามือ ฿1,000</button>
+    </div>
+    <div class="hint" id="hint">ขยับเมาส์เพื่อมองรอบโต๊ะ · คีย์ลัด 1–4 ลงชิป · Space แจกไพ่ / ไม่จั่ว · D จั่ว · M ปิดเสียง</div>
+  </footer>
+
+  <div class="title" id="title">
+    <div class="title-in">
+      <div class="eyebrow">วงไพ่หลังร้าน · เปิดถึงเช้า</div>
+      <h1>ป๊อกเด้ง</h1>
+      <h2>วงเที่ยงคืน</h2>
+      <p>นั่งลงตรงหน้าเจ้ามือ วางชิป แล้วลุ้นว่าจะได้ป๊อกหรือเปล่า ไพ่ดอกเดียวกันได้ 2 เด้ง ตองได้ 5 เด้ง ส่วนเจ้ามือแว่นดำคนนี้ไม่เคยยิ้มให้ใครง่าย ๆ</p>
+      <button class="act" id="btn-start" type="button">เข้าวง</button>
+      <div class="note" id="start-note">มีเสียงประกอบและดนตรี แนะนำให้ใส่หูฟัง</div>
+    </div>
+  </div>
+
+  <div class="sheet" id="rules" hidden role="dialog" aria-modal="true" aria-labelledby="rules-h">
+    <div class="sheet-in">
+      <button class="ghost close" id="btn-rules-close" type="button">ปิด</button>
+      <h3 id="rules-h">กติกาวงนี้</h3>
+      <p>เทียบไพ่กับเจ้ามือเท่านั้น A นับ 1, 2–9 ตามหน้าไพ่, 10 J Q K นับ 0 ใช้แต้มหลักหน่วยของผลรวม แต้มสูงสุดคือ 9</p>
+      <h4>ลำดับไพ่ ใหญ่ไปเล็ก</h4>
+      <p>ป๊อก 9 › ป๊อก 8 › ตอง › สเตรทฟลัช › เรียง › เซียน › แต้มธรรมดา 9 ถึง 0</p>
+      <h4>เด้ง ตัวคูณเงินเดิมพัน</h4>
+      <table>
+        <tr><td>2 ใบ ดอกเดียวกัน หรือเป็นคู่</td><td>2 เด้ง</td></tr>
+        <tr><td>3 ใบ ดอกเดียวกัน</td><td>3 เด้ง</td></tr>
+        <tr><td>เซียน (J Q K ล้วน 3 ใบ)</td><td>3 เด้ง</td></tr>
+        <tr><td>เรียง 3 ใบ</td><td>3 เด้ง</td></tr>
+        <tr><td>สเตรทฟลัช (เรียงและดอกเดียวกัน)</td><td>5 เด้ง</td></tr>
+        <tr><td>ตอง (เลขเดียวกัน 3 ใบ)</td><td>5 เด้ง</td></tr>
+        <tr><td>ไพ่ธรรมดา</td><td>1 เท่า</td></tr>
+      </table>
+      <h4>รายละเอียดที่ใช้ในเกมนี้</h4>
+      <ul>
+        <li>ได้ป๊อก 8 หรือ 9 จากไพ่ 2 ใบแรก ต้องเปิดทันที ไม่มีใครได้จั่วต่อ</li>
+        <li>ถ้าไม่มีใครป๊อก คุณเลือกจั่วใบที่ 3 ได้หนึ่งใบ</li>
+        <li>เจ้ามือจั่วเมื่อแต้มไม่เกิน 3 ถ้าได้ 4 แต้มจะจั่วบ้างไม่จั่วบ้าง</li>
+        <li>A-2-3 และ Q-K-A นับเป็นเรียง</li>
+        <li>ชนะได้เงิน = เดิมพัน × เด้งของมือคุณ แพ้เสีย = เดิมพัน × เด้งของเจ้ามือ แต้มเท่ากันคือเสมอ</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmt = (n) => '฿' + Math.round(n).toLocaleString('en-US');
+const rand = (a, b) => a + Math.random() * (b - a);
+
+/* =========================================================
+   Sound: everything is synthesized with WebAudio
+   ========================================================= */
+const Sound = (() => {
+  let ctx = null, master, sfx, music, room, noiseBuf, echo;
+  let on = true, musicOn = true;
+  const now = () => ctx.currentTime;
+
+  function init() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 4;
+    master = ctx.createGain(); master.gain.value = on ? 0.9 : 0;
+    master.connect(comp); comp.connect(ctx.destination);
+    sfx = ctx.createGain(); sfx.connect(master);
+    music = ctx.createGain(); music.gain.value = musicOn ? 1 : 0; music.connect(master);
+    room = ctx.createGain(); room.gain.value = 1; room.connect(master);
+
+    const len = ctx.sampleRate * 2;
+    noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+
+    echo = ctx.createDelay(1); echo.delayTime.value = 0.34;
+    const fb = ctx.createGain(); fb.gain.value = 0.33;
+    const elp = ctx.createBiquadFilter(); elp.type = 'lowpass'; elp.frequency.value = 2200;
+    echo.connect(elp); elp.connect(fb); fb.connect(echo); elp.connect(music);
+
+    startRoom(); startMusic();
+  }
+
+  function env(g, t, a, peak, dec) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec);
+  }
+  function noise({ dur = 0.1, f = 3000, q = 1, type = 'bandpass', gain = 0.3, when = 0, f2 = null, attack = 0.004, bus } = {}) {
+    if (!ctx) return;
+    const t = now() + when;
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const fl = ctx.createBiquadFilter(); fl.type = type; fl.Q.value = q;
+    fl.frequency.setValueAtTime(f, t);
+    if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    const g = ctx.createGain(); env(g, t, attack, gain, dur);
+    src.connect(fl); fl.connect(g); g.connect(bus || sfx);
+    src.start(t, Math.random() * 1.5); src.stop(t + dur + attack + 0.05);
+  }
+  function tone(freq, { dur = 0.2, type = 'sine', gain = 0.15, when = 0, attack = 0.005, slide = null, lp = null, bus, at = null } = {}) {
+    if (!ctx) return;
+    const t = at != null ? at : now() + when;
+    const o = ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    const g = ctx.createGain(); env(g, t, attack, gain, dur);
+    let n = o;
+    if (lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; o.connect(f); n = f; }
+    n.connect(g); g.connect(bus || sfx);
+    o.start(t); o.stop(t + attack + dur + 0.05);
+    return g;
+  }
+
+  function startRoom() {
+    // room tone: brown noise under a low lowpass, plus a faint ceiling-fan hum
+    const len = ctx.sampleRate * 4;
+    const b = ctx.createBuffer(1, len, ctx.sampleRate); const d = b.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+    const src = ctx.createBufferSource(); src.buffer = b; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
+    const g = ctx.createGain(); g.gain.value = 0.06;
+    src.connect(lp); lp.connect(g); g.connect(room); src.start();
+    const hum = ctx.createOscillator(); hum.frequency.value = 50;
+    const hg = ctx.createGain(); hg.gain.value = 0.006;
+    hum.connect(hg); hg.connect(room); hum.start();
+  }
+
+  function pluck(f, t, vol = 0.045) {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(f, t);
+    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.setValueAtTime(f * 2.01, t);
+    const g = ctx.createGain(); env(g, t, 0.003, vol, 0.9);
+    const g2 = ctx.createGain(); env(g2, t, 0.002, vol * 0.4, 0.35);
+    o.connect(g); o2.connect(g2);
+    [g, g2].forEach((x) => { x.connect(music); x.connect(echo); });
+    o.start(t); o2.start(t); o.stop(t + 1); o2.stop(t + 0.5);
+  }
+  function startMusic() {
+    // a slow drone on A and E with a wandering pentatonic pluck on top
+    [110, 164.81].forEach((f, i) => {
+      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const g = ctx.createGain(); g.gain.value = 0.02;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07 + i * 0.05;
+      const lg = ctx.createGain(); lg.gain.value = 0.012;
+      lfo.connect(lg); lg.connect(g.gain);
+      o.connect(lp); lp.connect(g); g.connect(music); o.start(); lfo.start();
+    });
+    const scale = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25];
+    let idx = 4, next = ctx.currentTime + 0.6;
+    setInterval(() => {
+      if (!ctx || !musicOn) { next = ctx ? ctx.currentTime + 0.3 : 0; return; }
+      while (next < ctx.currentTime + 0.4) {
+        if (Math.random() < 0.55) {
+          idx = Math.max(0, Math.min(scale.length - 1, idx + [-2, -1, -1, 1, 1, 2][Math.floor(Math.random() * 6)]));
+          pluck(scale[idx], next);
+          if (Math.random() < 0.2) pluck(scale[Math.max(0, idx - 2)], next + 0.12, 0.03);
+        }
+        next += [0.36, 0.36, 0.72][Math.floor(Math.random() * 3)];
+      }
+    }, 120);
+  }
+
+  const fx = {
+    deal() { noise({ dur: 0.12, f: 4200, f2: 1300, q: 0.8, gain: 0.26 }); },
+    land() { noise({ dur: 0.04, f: 1800, q: 0.7, gain: 0.2 }); tone(140, { dur: 0.05, gain: 0.05 }); },
+    flip(when = 0) { noise({ dur: 0.035, f: 5200, type: 'highpass', gain: 0.22, when }); noise({ dur: 0.06, f: 2400, q: 1.2, gain: 0.14, when: when + 0.03 }); },
+    shuffle() {
+      for (let i = 0; i < 22; i++) noise({ dur: 0.025, f: rand(2500, 5000), q: 1.5, gain: rand(0.1, 0.18), when: i * 0.028 });
+      noise({ dur: 0.2, f: 3000, f2: 700, gain: 0.2, when: 0.66 });
+    },
+    chip(when = 0) {
+      const base = rand(3000, 4200);
+      tone(base, { dur: 0.07, gain: 0.07, when });
+      tone(base * 1.37, { dur: 0.05, gain: 0.05, when: when + 0.012 });
+      tone(base * 0.9, { dur: 0.05, gain: 0.035, when: when + 0.05 });
+      noise({ dur: 0.02, f: 6000, type: 'highpass', gain: 0.12, when });
+    },
+    sweep() { noise({ dur: 0.35, f: 1200, f2: 3500, q: 0.6, gain: 0.16 }); },
+    tick() { tone(1900, { dur: 0.025, gain: 0.03, type: 'triangle' }); },
+    deny() { tone(220, { dur: 0.12, type: 'square', gain: 0.04, lp: 900 }); tone(180, { dur: 0.14, type: 'square', gain: 0.04, lp: 900, when: 0.1 }); },
+    knock() {
+      [0, 0.13].forEach((w) => { noise({ dur: 0.05, f: 280, type: 'lowpass', gain: 0.5, when: w }); tone(95, { dur: 0.08, gain: 0.12, when: w }); });
+    },
+    win(big) {
+      const notes = [523.25, 659.25, 783.99, 1046.5].concat(big ? [1318.5, 1568, 2093] : []);
+      notes.forEach((f, i) => tone(f, { type: 'triangle', dur: 0.32, gain: 0.11, when: i * 0.085 }));
+      if (big) noise({ dur: 1.2, f: 5000, f2: 11000, type: 'highpass', gain: 0.06, when: 0.3, attack: 0.2 });
+    },
+    lose() {
+      tone(392, { type: 'sawtooth', lp: 1200, dur: 0.3, gain: 0.07 });
+      tone(311, { type: 'sawtooth', lp: 1100, dur: 0.3, gain: 0.07, when: 0.22 });
+      tone(233, { type: 'sawtooth', lp: 900, dur: 0.8, gain: 0.08, when: 0.44, slide: 196 });
+    },
+    tie() { tone(587, { type: 'triangle', dur: 0.25, gain: 0.08 }); tone(587, { type: 'triangle', dur: 0.35, gain: 0.07, when: 0.18 }); },
+    gong(low) {
+      const base = low ? 98 : 131;
+      [1, 1.48, 2.0, 2.76, 4.07].forEach((p, i) => tone(base * p, { dur: 3.2 / (i * 0.5 + 1), gain: 0.18 / (i + 1), attack: 0.004 }));
+      noise({ dur: 0.18, f: 450, type: 'lowpass', gain: 0.3 });
+    },
+    coins(n) { for (let i = 0; i < n; i++) fx.chip(i * 0.06); },
+  };
+
+  return {
+    init, ...fx,
+    get on() { return on; },
+    get musicOn() { return musicOn; },
+    setOn(v) { on = v; if (ctx) master.gain.setTargetAtTime(v ? 0.9 : 0, now(), 0.05); },
+    setMusic(v) { musicOn = v; if (ctx) music.gain.setTargetAtTime(v ? 1 : 0, now(), 0.2); },
+  };
+})();
+
+/* =========================================================
+   Renderer, scene, camera
+   ========================================================= */
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+const MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0807);
+scene.fog = new THREE.Fog(0x0b0807, 2.6, 7.5);
+const camera = new THREE.PerspectiveCamera(66, 1, 0.01, 40);
+camera.rotation.order = 'YXZ';
+
+const T = 0.74;              // table top height
+const CW = 0.075, CH = 0.105; // card size
+
+function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function dynTex(w, h, draw, srgb = true) {
+  const c = makeCanvas(w, h); const g = c.getContext('2d');
+  draw(g, w, h);
+  const tex = new THREE.CanvasTexture(c);
+  if (srgb) tex.encoding = THREE.sRGBEncoding;
+  tex.anisotropy = MAX_ANISO;
+  return { tex, redraw() { g.clearRect(0, 0, w, h); draw(g, w, h); tex.needsUpdate = true; } };
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+const std = (o) => new THREE.MeshStandardMaterial(o);
+
+/* ---------- lighting ---------- */
+scene.add(new THREE.HemisphereLight(0x8a6650, 0x0b0807, 0.42));
+const spot = new THREE.SpotLight(0xffc98a, 2.3, 0, 0.82, 0.55, 1);
+spot.position.set(0, 1.9, 0.02);
+spot.target.position.set(0, T, 0.05);
+spot.castShadow = true;
+spot.shadow.mapSize.set(1024, 1024);
+spot.shadow.bias = -0.0004;
+spot.shadow.camera.near = 0.4; spot.shadow.camera.far = 3;
+scene.add(spot, spot.target);
+const SPOT_BASE = 2.3;
+const rim = new THREE.DirectionalLight(0x4a6cff, 0.35); rim.position.set(-1, 2, -3); scene.add(rim);
+const neonLight = new THREE.PointLight(0xff3d7f, 0.9, 4.5, 2); neonLight.position.set(-0.9, 1.9, -1.9); scene.add(neonLight);
+const tealLight = new THREE.PointLight(0x35e0d0, 0.45, 3.5, 2); tealLight.position.set(1.4, 1.6, -1.9); scene.add(tealLight);
+
+/* ---------- lamp ---------- */
+const lamp = new THREE.Group(); scene.add(lamp);
+const shade = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.17, 40, 1, true), std({ color: 0x1f3a2e, roughness: 0.5, metalness: 0.4, side: THREE.DoubleSide }));
+shade.position.y = 1.98; lamp.add(shade);
+const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.038, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffe6b8 }));
+bulb.position.y = 1.9; lamp.add(bulb);
+const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1.2, 6), std({ color: 0x111111 }));
+cord.position.y = 2.66; lamp.add(cord);
+const glowTex = dynTex(128, 128, (g, w) => {
+  const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+  gr.addColorStop(0, 'rgba(255,230,180,1)'); gr.addColorStop(0.25, 'rgba(255,200,130,0.45)'); gr.addColorStop(1, 'rgba(255,180,100,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, w);
+}).tex;
+const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+glow.scale.set(0.6, 0.6, 1); glow.position.y = 1.88; lamp.add(glow);
+
+/* ---------- room ---------- */
+const floorTex = dynTex(256, 256, (g, w) => {
+  const cols = ['#33261f', '#5a4434'];
+  for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = cols[(x + y) % 2]; g.fillRect(x * 128, y * 128, 128, 128); }
+  for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,240,220'},${rand(0.02, 0.08)})`; g.fillRect(rand(0, w), rand(0, w), 2, 2); }
+  g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.strokeRect(0, 0, 128, 128); g.strokeRect(128, 128, 128, 128); g.strokeRect(128, 0, 128, 128); g.strokeRect(0, 128, 128, 128);
+}).tex;
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(16, 16);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), std({ map: floorTex, roughness: 0.85 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const wallTex = dynTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#4a3a2e'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1e4a44'; g.fillRect(0, h * 0.55, w, h * 0.45);
+  g.fillStyle = '#c9a76a'; g.fillRect(0, h * 0.55 - 6, w, 6);
+  for (let i = 0; i < 60; i++) {
+    const gr = g.createRadialGradient(rand(0, w), rand(0, h), 0, rand(0, w), rand(0, h), rand(30, 120));
+    gr.addColorStop(0, 'rgba(0,0,0,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
+}).tex;
+wallTex.wrapS = THREE.RepeatWrapping; wallTex.repeat.set(3, 1);
+const wallMat = std({ map: wallTex, roughness: 0.95 });
+const back = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.2), wallMat); back.position.set(0, 1.6, -2.4); back.receiveShadow = true; scene.add(back);
+[-3, 3].forEach((x) => { const w = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.2), wallMat); w.position.set(x, 1.6, 0.5); w.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2; scene.add(w); });
+
+function neonDraw(text, color, glowCol, size) {
+  return (g, w, h) => {
+    g.font = `600 ${size}px Mitr, "Bai Jamjuree", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = glowCol;
+    for (let i = 0; i < 3; i++) { g.shadowBlur = 30 - i * 8; g.lineWidth = 8 - i * 2; g.strokeStyle = color; g.strokeText(text, w / 2, h / 2); }
+    g.shadowBlur = 10; g.fillStyle = '#fff3f7'; g.fillText(text, w / 2, h / 2);
+  };
+}
+const neon1 = dynTex(1024, 256, neonDraw('ป๊อกเด้ง', '#ff5c93', '#ff2a72', 150));
+const neon2 = dynTex(1024, 256, neonDraw('เปิดถึงเช้า', '#4ff0e0', '#16c9b9', 120));
+const neonMat1 = new THREE.MeshBasicMaterial({ map: neon1.tex, transparent: true, depthWrite: false, toneMapped: false });
+const neonMat2 = new THREE.MeshBasicMaterial({ map: neon2.tex, transparent: true, depthWrite: false, toneMapped: false });
+const sign1 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), neonMat1); sign1.position.set(-0.9, 2.0, -2.37); scene.add(sign1);
+const sign2 = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.225), neonMat2); sign2.position.set(1.4, 1.65, -2.37); scene.add(sign2);
+
+/* ---------- table ---------- */
+const woodTex = dynTex(512, 128, (g, w, h) => {
+  g.fillStyle = '#4a2a17'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 70; i++) { g.strokeStyle = `rgba(${Math.random() < 0.5 ? '20,8,2' : '120,70,35'},${rand(0.15, 0.4)})`; g.lineWidth = rand(1, 3); g.beginPath(); const y = rand(0, h); g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + rand(-8, 8), w * 0.6, y + rand(-8, 8), w, y + rand(-6, 6)); g.stroke(); }
+}).tex;
+const woodMat = std({ map: woodTex, roughness: 0.55 });
+const top = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.05, 1.22), woodMat); top.position.set(0, T - 0.026, 0); top.receiveShadow = true; top.castShadow = true; scene.add(top);
+[[-0.75, -0.5], [0.75, -0.5], [-0.75, 0.5], [0.75, 0.5]].forEach(([x, z]) => {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, T - 0.05, 10), woodMat); leg.position.set(x, (T - 0.05) / 2, z); leg.castShadow = true; scene.add(leg);
+});
+const railMat = std({ color: 0x2a140c, roughness: 0.35, metalness: 0.05 });
+const railGeoL = new THREE.BoxGeometry(1.72, 0.032, 0.07), railGeoS = new THREE.BoxGeometry(0.07, 0.032, 1.08);
+[[0, 0.575, railGeoL], [0, -0.575, railGeoL], [0.825, 0, railGeoS], [-0.825, 0, railGeoS]].forEach(([x, z, geo]) => {
+  const r = new THREE.Mesh(geo, railMat); r.position.set(x, T + 0.016, z); r.castShadow = true; r.receiveShadow = true; scene.add(r);
+});
+
+const felt = dynTex(1024, 696, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, w * 0.62);
+  gr.addColorStop(0, '#2c7a54'); gr.addColorStop(1, '#123a28');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26000; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '200,255,220'},${rand(0.02, 0.06)})`; g.fillRect(rand(0, w), rand(0, h), 1.5, 1.5); }
+  g.strokeStyle = 'rgba(217,164,65,0.5)'; g.lineWidth = 3; roundRect(g, 26, 26, w - 52, h - 52, 30); g.stroke();
+  g.lineWidth = 1.5; roundRect(g, 36, 36, w - 72, h - 72, 24); g.stroke();
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(241,207,122,0.16)'; g.font = '600 92px Mitr, "Bai Jamjuree", sans-serif'; g.fillText('ป๊อกเด้ง', w / 2, 318);
+  g.fillStyle = 'rgba(241,207,122,0.42)'; g.font = '400 22px "Bai Jamjuree", sans-serif';
+  g.fillText('ป๊อก 9  ·  ป๊อก 8  ·  ตอง  ·  สเตรทฟลัช  ·  เรียง  ·  เซียน', w / 2, 388);
+  g.fillStyle = 'rgba(241,207,122,0.45)'; g.font = '500 24px Mitr, sans-serif'; g.fillText('เจ้ามือ', w / 2, 62);
+  g.setLineDash([10, 8]); g.strokeStyle = 'rgba(241,207,122,0.55)'; g.lineWidth = 3;
+  g.beginPath(); g.arc(w / 2, 479, 60, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(241,207,122,0.5)'; g.font = '400 18px "Bai Jamjuree", sans-serif'; g.fillText('เดิมพัน', w / 2 - 110, 479);
+});
+const feltMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.56, 1.06), std({ map: felt.tex, roughness: 0.95 }));
+feltMesh.rotation.x = -Math.PI / 2; feltMesh.position.y = T + 0.0005; feltMesh.receiveShadow = true; scene.add(feltMesh);
+
+/* ---------- props ---------- */
+(function props() {
+  const pts = [[0, 0], [0.032, 0], [0.034, 0.01], [0.034, 0.16], [0.03, 0.19], [0.014, 0.23], [0.012, 0.28], [0.015, 0.285], [0.013, 0.292], [0, 0.292]].map(([r, y]) => new THREE.Vector2(r, y));
+  const bottleGeo = new THREE.LatheGeometry(pts, 24);
+  const glass = std({ color: 0x2f6a1f, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 });
+  const labelTex = dynTex(256, 64, (g, w, h) => { g.fillStyle = '#e8dcc0'; g.fillRect(0, 0, w, h); g.fillStyle = '#7a1f2b'; g.font = '600 30px Mitr, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('เย็นเจี๊ยบ', w / 2, h / 2); }).tex;
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.0345, 0.0345, 0.06, 24, 1, true), std({ map: labelTex, roughness: 0.7 }));
+  [[0.62, -0.42], [-0.66, 0.36]].forEach(([x, z], i) => {
+    const b = new THREE.Mesh(bottleGeo, glass); b.position.set(x, T, z); b.castShadow = true; scene.add(b);
+    const l = label.clone(); l.position.set(x, T + 0.09, z); l.rotation.y = i ? 2.4 : -0.6; scene.add(l);
+  });
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.03, 0.1, 24, 1, true), std({ color: 0xffffff, roughness: 0.05, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
+  cup.position.set(0.52, T + 0.05, 0.3); scene.add(cup);
+  const tea = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.029, 0.065, 24), std({ color: 0xc8611c, roughness: 0.3, transparent: true, opacity: 0.85 }));
+  tea.position.set(0.52, T + 0.034, 0.3); scene.add(tea);
+})();
+
+/* ---------- dust in the lamp light ---------- */
+const DUST = 260;
+const dustGeo = new THREE.BufferGeometry();
+const dustPos = new Float32Array(DUST * 3), dustSeed = new Float32Array(DUST);
+for (let i = 0; i < DUST; i++) {
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.6;
+  dustPos[i * 3] = Math.cos(a) * r; dustPos[i * 3 + 1] = rand(0.85, 1.85); dustPos[i * 3 + 2] = Math.sin(a) * r; dustSeed[i] = Math.random() * 100;
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dotTex = dynTex(32, 32, (g, w) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }).tex;
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.007, map: dotTex, color: 0xffd9a0, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+scene.add(dust);
+
+/* ---------- dealer ---------- */
+function limb(a, b, r, mat) {
+  const d = new THREE.Vector3().subVectors(b, a); const len = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.88, len, 14), mat);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  m.castShadow = true; return m;
+}
+const skin = std({ color: 0xb98563, roughness: 0.6 });
+const shirtTex = dynTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#6d1a26'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 46; i++) {
+    const x = rand(0, w), y = rand(0, h), s = rand(14, 30);
+    g.fillStyle = Math.random() < 0.6 ? 'rgba(243,230,207,0.85)' : 'rgba(241,207,122,0.85)';
+    for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2; g.beginPath(); g.ellipse(x + Math.cos(a) * s * 0.55, y + Math.sin(a) * s * 0.55, s * 0.45, s * 0.25, a, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#c9851f'; g.beginPath(); g.arc(x, y, s * 0.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(40,90,50,0.8)'; g.beginPath(); g.ellipse(x + s, y + s * 0.4, s * 0.5, s * 0.16, 0.7, 0, Math.PI * 2); g.fill();
+  }
+}).tex;
+shirtTex.wrapS = shirtTex.wrapT = THREE.RepeatWrapping; shirtTex.repeat.set(2, 1);
+const shirt = std({ map: shirtTex, roughness: 0.8 });
+const dealer = new THREE.Group(); dealer.position.set(0, 0, -0.8); scene.add(dealer);
+const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.21, 0.55, 24), shirt); torso.position.y = 1.03; torso.castShadow = true; dealer.add(torso);
+const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.21, 24, 16), shirt); shoulders.scale.set(1.05, 0.42, 0.72); shoulders.position.y = 1.29; shoulders.castShadow = true; dealer.add(shoulders);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 12), skin); neck.position.y = 1.36; dealer.add(neck);
+const chain = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.005, 8, 32), std({ color: 0xe0b04a, metalness: 1, roughness: 0.25 }));
+chain.rotation.x = Math.PI / 2 - 0.3; chain.position.set(0, 1.33, 0.02); dealer.add(chain);
+const head = new THREE.Group(); head.position.y = 1.46; dealer.add(head);
+const skull = new THREE.Mesh(new THREE.SphereGeometry(0.1, 28, 20), skin); skull.scale.set(0.95, 1.1, 1); skull.castShadow = true; head.add(skull);
+const hair = new THREE.Mesh(new THREE.SphereGeometry(0.104, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), std({ color: 0x15100d, roughness: 0.9 }));
+hair.scale.set(0.97, 1.0, 1.04); hair.position.set(0, 0.018, -0.008); head.add(hair);
+const lensMat = std({ color: 0x050505, metalness: 0.7, roughness: 0.08 });
+[-0.036, 0.036].forEach((x) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.03, 0.012), lensMat); l.position.set(x, 0.012, 0.092); head.add(l); });
+const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.01), lensMat); bridge.position.set(0, 0.022, 0.097); head.add(bridge);
+const stache = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.01, 0.012), std({ color: 0x15100d })); stache.position.set(0, -0.045, 0.094); head.add(stache);
+const arms = {};
+[['L', 1], ['R', -1]].forEach(([k, s]) => {
+  const sh = new THREE.Vector3(0.2 * s, 1.27, 0), el = new THREE.Vector3(0.26 * s, 0.95, 0.18), hd = new THREE.Vector3(0.2 * s, 0.79, 0.4);
+  dealer.add(limb(sh, el, 0.055, shirt));
+  const fore = limb(el, hd, 0.042, skin); dealer.add(fore);
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 16, 12), skin); hand.scale.set(1, 0.5, 1.3); hand.position.copy(hd); hand.castShadow = true; dealer.add(hand);
+  arms[k] = { hand, fore, base: hd.clone() };
+});
+
+/* ---------- player's own forearms ---------- */
+const sleeve = std({ color: 0x2b3442, roughness: 0.85 });
+[1, -1].forEach((s) => {
+  const a = new THREE.Vector3(0.4 * s, 0.82, 0.98), b = new THREE.Vector3(0.34 * s, T + 0.05, 0.66), h = new THREE.Vector3(0.32 * s, T + 0.045, 0.57);
+  scene.add(limb(a, b, 0.05, sleeve));
+  scene.add(limb(b, h, 0.043, sleeve));
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.036, 16, 12), skin); hand.scale.set(1.05, 0.55, 1.35); hand.position.copy(h).add(new THREE.Vector3(-0.004 * s, 0, -0.035)); hand.castShadow = true; scene.add(hand);
+});
+
+/* =========================================================
+   Cards
+   ========================================================= */
+const SUITS = ['♠', '♥', '♦', '♣'], RED = [false, true, true, false];
+const RN = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' }; const rname = (r) => RN[r] || String(r);
+const SYM = '"Segoe UI Symbol","Apple Symbols","Noto Sans Symbols 2","DejaVu Sans",serif';
+const PIPS = {
+  2: [[.5, .2], [.5, .8]], 3: [[.5, .2], [.5, .5], [.5, .8]],
+  4: [[.33, .2], [.67, .2], [.33, .8], [.67, .8]],
+  5: [[.33, .2], [.67, .2], [.5, .5], [.33, .8], [.67, .8]],
+  6: [[.33, .2], [.67, .2], [.33, .5], [.67, .5], [.33, .8], [.67, .8]],
+  7: [[.33, .2], [.67, .2], [.5, .35], [.33, .5], [.67, .5], [.33, .8], [.67, .8]],
+  8: [[.33, .2], [.67, .2], [.5, .35], [.33, .5], [.67, .5], [.5, .65], [.33, .8], [.67, .8]],
+  9: [[.33, .2], [.67, .2], [.33, .4], [.67, .4], [.5, .5], [.33, .6], [.67, .6], [.33, .8], [.67, .8]],
+  10: [[.33, .2], [.67, .2], [.5, .3], [.33, .4], [.67, .4], [.33, .6], [.67, .6], [.5, .7], [.33, .8], [.67, .8]],
+};
+function glyph(g, s, x, y, size, flip) {
+  g.save(); g.translate(x, y); if (flip) g.rotate(Math.PI);
+  g.font = `${size}px ${SYM}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(SUITS[s] + '︎', 0, 0); g.restore();
+}
+function drawFace(c) {
+  return (g, w, h) => {
+    roundRect(g, 2, 2, w - 4, h - 4, 18); g.fillStyle = '#fbf7ee'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#d6ccb8'; g.stroke();
+    const col = RED[c.s] ? '#c3172a' : '#17151c'; g.fillStyle = col;
+    for (const rot of [false, true]) {
+      g.save(); if (rot) { g.translate(w, h); g.rotate(Math.PI); }
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      g.font = `bold ${c.r === 10 ? 48 : 60}px Georgia,"Times New Roman",serif`;
+      g.fillText(rname(c.r), 36, 66); glyph(g, c.s, 36, 100, 40); g.restore();
+    }
+    if (c.r === 1) glyph(g, c.s, w / 2, h / 2, c.s === 0 ? 150 : 124);
+    else if (c.r <= 10) PIPS[c.r].forEach(([px, py]) => glyph(g, c.s, w * px, h * py, 50, py > 0.5));
+    else {
+      const fx = 58, fy = 60, fw = w - 116, fh = h - 120;
+      const gr = g.createLinearGradient(0, fy, 0, fy + fh);
+      gr.addColorStop(0, RED[c.s] ? '#f8e1cf' : '#e6e2f0'); gr.addColorStop(0.5, '#fff8ea'); gr.addColorStop(1, RED[c.s] ? '#f8e1cf' : '#e6e2f0');
+      roundRect(g, fx, fy, fw, fh, 8); g.fillStyle = gr; g.fill();
+      g.lineWidth = 4; g.strokeStyle = '#c9993a'; g.stroke();
+      g.lineWidth = 1.5; roundRect(g, fx + 7, fy + 7, fw - 14, fh - 14, 5); g.stroke();
+      g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = 'bold 112px Georgia,"Times New Roman",serif'; g.fillText(rname(c.r), w / 2, h / 2 + 6);
+      glyph(g, c.s, w / 2, fy + 36, 34); glyph(g, c.s, w / 2, fy + fh - 36, 34, true);
+    }
+  };
+}
+const backTex = dynTex(256, 358, (g, w, h) => {
+  roundRect(g, 2, 2, w - 4, h - 4, 18); g.fillStyle = '#fbf7ee'; g.fill();
+  roundRect(g, 14, 14, w - 28, h - 28, 10); g.fillStyle = '#8f1d25'; g.fill();
+  g.save(); g.clip(); g.strokeStyle = 'rgba(241,207,122,0.32)'; g.lineWidth = 2;
+  for (let i = -h; i < w + h; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); g.beginPath(); g.moveTo(i + h, 0); g.lineTo(i, h); g.stroke(); }
+  g.restore();
+  g.strokeStyle = 'rgba(241,207,122,0.75)'; g.lineWidth = 2; roundRect(g, 22, 22, w - 44, h - 44, 6); g.stroke();
+  g.save(); g.translate(w / 2, h / 2);
+  for (let k = 0; k < 8; k++) { g.rotate(Math.PI / 4); g.beginPath(); g.ellipse(0, -34, 12, 28, 0, 0, Math.PI * 2); g.fillStyle = '#f1cf7a'; g.fill(); }
+  g.beginPath(); g.arc(0, 0, 19, 0, Math.PI * 2); g.fillStyle = '#8f1d25'; g.fill(); g.strokeStyle = '#f1cf7a'; g.lineWidth = 3; g.stroke();
+  g.restore();
+}).tex;
+const cardGeo = new THREE.BoxGeometry(CW, CH, 0.0007);
+const cardSide = std({ color: 0xf2ede2, roughness: 0.6 });
+const backMat = std({ map: backTex, roughness: 0.45, alphaTest: 0.5 });
+const faceCache = {};
+function faceMat(c) {
+  const k = c.r + '-' + c.s;
+  if (!faceCache[k]) faceCache[k] = std({ map: dynTex(256, 358, drawFace(c)).tex, roughness: 0.42, alphaTest: 0.5 });
+  return faceCache[k];
+}
+function makeCard(c) {
+  const m = new THREE.Mesh(cardGeo, [cardSide, cardSide, cardSide, cardSide, faceMat(c), backMat]);
+  m.castShadow = true; m.receiveShadow = true; scene.add(m); return m;
+}
+// the deck by the dealer's left hand
+const DECK_POS = new THREE.Vector3(0.33, T, -0.36);
+const deckBox = new THREE.Mesh(new THREE.BoxGeometry(CW, 0.026, CH), [cardSide, cardSide, std({ map: backTex, roughness: 0.5 }), cardSide, cardSide, cardSide]);
+deckBox.position.copy(DECK_POS).setY(T + 0.013); deckBox.rotation.y = 0.15; deckBox.castShadow = true; scene.add(deckBox);
+const DECK_TOP = DECK_POS.clone().setY(T + 0.028);
+const DISCARD = new THREE.Vector3(0.52, T + 0.002, -0.12);
+
+/* =========================================================
+   Chips
+   ========================================================= */
+const DENOMS = [
+  { v: 500, col: '#1b1b22', edge: '#d9a441', txt: '#f1cf7a' },
+  { v: 100, col: '#1f6b45', edge: '#f3e6cf', txt: '#ffffff' },
+  { v: 50, col: '#b3242f', edge: '#f3e6cf', txt: '#ffffff' },
+  { v: 10, col: '#2a5bb8', edge: '#f3e6cf', txt: '#ffffff' },
+];
+const CHIP_H = 0.0066;
+const chipGeo = new THREE.CylinderGeometry(0.022, 0.022, CHIP_H, 32);
+DENOMS.forEach((d) => {
+  const side = dynTex(256, 32, (g, w, h) => { g.fillStyle = d.col; g.fillRect(0, 0, w, h); g.fillStyle = d.edge; for (let i = 0; i < 8; i++) g.fillRect(i * 32 + 9, 0, 14, h); }).tex;
+  const topT = dynTex(256, 256, (g) => {
+    g.fillStyle = d.col; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
+    g.fillStyle = d.edge; for (let i = 0; i < 8; i++) { g.save(); g.translate(128, 128); g.rotate(i * Math.PI / 4); g.fillRect(-13, -128, 26, 34); g.restore(); }
+    g.strokeStyle = d.edge; g.lineWidth = 5; g.beginPath(); g.arc(128, 128, 80, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = d.txt; g.font = 'bold 66px Georgia,serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(d.v), 128, 132);
+  }).tex;
+  const sm = std({ map: side, roughness: 0.5 }), tm = std({ map: topT, roughness: 0.45 });
+  d.mats = [sm, tm, tm];
+});
+const denom = (v) => DENOMS.find((d) => d.v === v);
+function makeChip(v) { const m = new THREE.Mesh(chipGeo, denom(v).mats); m.castShadow = true; m.receiveShadow = true; m.rotation.y = Math.random() * 6; scene.add(m); return m; }
+function chipsFor(amount, cap = 30) {
+  const out = []; let a = amount;
+  for (const d of DENOMS) while (a >= d.v && out.length < cap) { out.push(d.v); a -= d.v; }
+  return out;
+}
+
+const STASH = new THREE.Vector3(0.26, T, 0.26);
+const STASH_OFF = { 500: [0, 0], 100: [0.05, 0], 50: [0, 0.05], 10: [0.05, 0.05] };
+const BANK = new THREE.Vector3(-0.4, T, -0.33);
+const BET_POS = new THREE.Vector3(0, T, 0.2);
+let stashMeshes = [];
+const stashCount = { 500: 0, 100: 0, 50: 0, 10: 0 };
+function stashTop(v) { const o = STASH_OFF[v]; return new THREE.Vector3(STASH.x + o[0], T + CHIP_H / 2 + stashCount[v] * CHIP_H, STASH.z + o[1]); }
+function refreshStash(amount) {
+  stashMeshes.forEach((m) => scene.remove(m)); stashMeshes = [];
+  Object.keys(stashCount).forEach((k) => (stashCount[k] = 0));
+  const counts = { 500: 0, 100: 0, 50: 0, 10: 0 };
+  chipsFor(amount, 200).forEach((v) => counts[v]++);
+  for (const v of [500, 100, 50, 10]) {
+    const n = Math.min(counts[v], 16);
+    for (let i = 0; i < n; i++) {
+      const m = makeChip(v); const p = stashTop(v); m.position.set(p.x + rand(-0.0015, 0.0015), p.y, p.z + rand(-0.0015, 0.0015));
+      stashCount[v]++; stashMeshes.push(m);
+    }
+  }
+}
+(function bank() {
+  const cols = [[0, 0, 500, 12], [0.05, 0, 100, 15], [0.1, 0, 50, 10], [0, 0.05, 100, 9], [0.05, 0.05, 10, 14], [0.1, 0.05, 500, 7]];
+  cols.forEach(([dx, dz, v, n]) => { for (let i = 0; i < n; i++) { const m = makeChip(v); m.position.set(BANK.x + dx + rand(-0.001, 0.001), T + CHIP_H / 2 + i * CHIP_H, BANK.z + dz); } });
+})();
+const BANK_TOP = BANK.clone().add(new THREE.Vector3(0.05, 0.12, 0.025));
+function pilePos(i, base = BET_POS) {
+  const col = Math.floor(i / 14), row = i % 14;
+  return new THREE.Vector3(base.x + col * 0.048, T + CHIP_H / 2 + row * CHIP_H, base.z);
+}
+
+/* =========================================================
+   Tweens
+   ========================================================= */
+const E = {
+  outCubic: (k) => 1 - Math.pow(1 - k, 3),
+  inOutCubic: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  outBack: (k) => { const c = 1.6; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+  linear: (k) => k,
+};
+let anims = [];
+function animate(dur, fn, { delay = 0, ease = E.outCubic } = {}) {
+  return new Promise((res) => anims.push({ t: -delay, dur: Math.max(dur, 0.0001), fn, ease, res }));
+}
+const wait = (ms) => animate(ms / 1000, () => {});
+function updateAnims(dt) {
+  const list = anims; anims = [];
+  const keep = [];
+  for (const a of list) {
+    a.t += dt;
+    if (a.t < 0) { keep.push(a); continue; }
+    const k = Math.min(1, a.t / a.dur);
+    a.fn(a.ease(k), k);
+    if (k >= 1) a.res(); else keep.push(a);
+  }
+  anims = keep.concat(anims);
+}
+function moveTo(obj, to, dur, { arc = 0, delay = 0, ease = E.outCubic } = {}) {
+  let from = null;
+  return animate(dur, (e, k) => {
+    if (!from) from = { p: obj.position.clone(), rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z };
+    if (to.pos) { obj.position.lerpVectors(from.p, to.pos, e); if (arc) obj.position.y += Math.sin(Math.PI * k) * arc; }
+    if (to.rx !== undefined) obj.rotation.x = from.rx + (to.rx - from.rx) * e;
+    if (to.ry !== undefined) obj.rotation.y = from.ry + (to.ry - from.ry) * e;
+    if (to.rz !== undefined) obj.rotation.z = from.rz + (to.rz - from.rz) * e;
+  }, { delay, ease });
+}
+
+/* =========================================================
+   Effects: confetti, sparks, shake, flashes
+   ========================================================= */
+const confetti = [];
+const confettiGeo = new THREE.PlaneGeometry(0.012, 0.02);
+const confettiMats = [0xf1cf7a, 0xd9a441, 0xb3242f, 0xf3e6cf, 0x4fc98a].map((c) => new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide, roughness: 0.4, metalness: 0.3 }));
+function burstConfetti(at, n) {
+  n = RM ? Math.round(n / 4) : n;
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(confettiGeo, confettiMats[i % confettiMats.length]);
+    m.position.copy(at).add(new THREE.Vector3(rand(-0.05, 0.05), 0.02, rand(-0.05, 0.05)));
+    m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
+    scene.add(m);
+    const a = Math.random() * Math.PI * 2, sp = rand(0.2, 0.75);
+    confetti.push({ m, v: new THREE.Vector3(Math.cos(a) * sp, rand(1.2, 2.1), Math.sin(a) * sp - 0.25), spin: new THREE.Vector3(rand(-12, 12), rand(-12, 12), rand(-12, 12)), rest: false });
+  }
+}
+function clearConfetti() { confetti.forEach((c) => scene.remove(c.m)); confetti.length = 0; }
+const sparks = [];
+function burstSparks(at, n = 90, color = 0xffd27a) {
+  n = RM ? Math.round(n / 3) : n;
+  const geo = new THREE.BufferGeometry(); const pos = new Float32Array(n * 3); const vel = [];
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = at.x; pos[i * 3 + 1] = at.y + 0.02; pos[i * 3 + 2] = at.z;
+    const th = Math.random() * Math.PI * 2, ph = Math.random() * Math.PI * 0.5, sp = rand(0.4, 1.3);
+    vel.push(new THREE.Vector3(Math.cos(th) * Math.cos(ph) * sp, Math.sin(ph) * sp + 0.4, Math.sin(th) * Math.cos(ph) * sp));
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ size: 0.016, map: dotTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 1 });
+  const p = new THREE.Points(geo, mat); scene.add(p);
+  sparks.push({ p, vel, life: 0, max: 1.2 });
+}
+function updateFx(dt) {
+  for (const c of confetti) {
+    if (c.rest) continue;
+    c.v.y -= 3.2 * dt; c.v.multiplyScalar(1 - 1.4 * dt);
+    c.m.position.addScaledVector(c.v, dt);
+    c.m.rotation.x += c.spin.x * dt; c.m.rotation.y += c.spin.y * dt; c.m.rotation.z += c.spin.z * dt;
+    const onTable = Math.abs(c.m.position.x) < 0.8 && Math.abs(c.m.position.z) < 0.55;
+    const ground = onTable ? T + 0.002 : 0.002;
+    if (c.v.y < 0 && c.m.position.y <= ground) { c.m.position.y = ground + Math.random() * 0.001; c.m.rotation.set(-Math.PI / 2, 0, Math.random() * 6); c.rest = true; }
+  }
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i]; s.life += dt;
+    const arr = s.p.geometry.attributes.position.array;
+    s.vel.forEach((v, j) => { v.y -= 1.6 * dt; v.multiplyScalar(1 - 1.8 * dt); arr[j * 3] += v.x * dt; arr[j * 3 + 1] += v.y * dt; arr[j * 3 + 2] += v.z * dt; });
+    s.p.geometry.attributes.position.needsUpdate = true;
+    s.p.material.opacity = Math.max(0, 1 - s.life / s.max);
+    if (s.life >= s.max) { scene.remove(s.p); s.p.geometry.dispose(); s.p.material.dispose(); sparks.splice(i, 1); }
+  }
+}
+let shakeAmt = 0, lampBoost = 0;
+const shake = (a) => { if (!RM) shakeAmt = Math.max(shakeAmt, a); };
+const lampFlash = (a = 2.5) => { lampBoost = Math.max(lampBoost, a); };
+function vignetteHit() { const v = $('#vignette'); v.classList.remove('hit'); void v.offsetWidth; v.classList.add('hit'); }
+
+/* =========================================================
+   Camera: seated first person with mouse / drag look
+   ========================================================= */
+const cam = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, focus: 0, tFocus: 0, intro: 1, dragging: false, lx: 0, ly: 0 };
+const SEAT = new THREE.Vector3(0, 1.2, 0.93), STAND = new THREE.Vector3(0.25, 1.55, 1.55);
+let seatAdj = new THREE.Vector3(), basePitch = -0.21;
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  if (w / h < 0.8) { camera.fov = 80; seatAdj.set(0, 0.06, 0.12); basePitch = -0.29; }
+  else if (w / h < 1.25) { camera.fov = 72; seatAdj.set(0, 0.03, 0.05); basePitch = -0.25; }
+  else { camera.fov = 66; seatAdj.set(0, 0, 0); basePitch = -0.21; }
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+window.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse') {
+    const nx = (e.clientX / window.innerWidth) * 2 - 1, ny = (e.clientY / window.innerHeight) * 2 - 1;
+    cam.tYaw = -nx * 0.38; cam.tPitch = -ny * 0.16;
+  } else if (cam.dragging) {
+    cam.tYaw = Math.max(-0.6, Math.min(0.6, cam.tYaw + (e.clientX - cam.lx) * 0.004));
+    cam.tPitch = Math.max(-0.3, Math.min(0.3, cam.tPitch + (e.clientY - cam.ly) * 0.003));
+    cam.lx = e.clientX; cam.ly = e.clientY;
+  }
+});
+canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { cam.dragging = true; cam.lx = e.clientX; cam.ly = e.clientY; } });
+window.addEventListener('pointerup', () => { cam.dragging = false; });
+window.addEventListener('pointercancel', () => { cam.dragging = false; });
+
+let time = 0;
+function updateCamera(dt) {
+  const k = Math.min(1, dt * 4);
+  if (!cam.dragging && matchMedia('(pointer: coarse)').matches) { cam.tYaw *= 1 - dt * 0.6; cam.tPitch *= 1 - dt * 0.6; }
+  cam.yaw += (cam.tYaw - cam.yaw) * k; cam.pitch += (cam.tPitch - cam.pitch) * k;
+  cam.focus += (cam.tFocus - cam.focus) * Math.min(1, dt * 2.5);
+  const ip = cam.intro;
+  const seat = SEAT.clone().add(seatAdj);
+  const pos = seat.lerp(STAND, ip * ip);
+  shakeAmt = Math.max(0, shakeAmt - dt * 1.6);
+  const sx = (Math.random() - 0.5) * shakeAmt * 0.03, sy = (Math.random() - 0.5) * shakeAmt * 0.03;
+  camera.position.set(pos.x + sx, pos.y + Math.sin(time * 1.3) * 0.004 + sy, pos.z);
+  camera.rotation.x = basePitch + cam.focus + cam.pitch - ip * 0.12;
+  camera.rotation.y = cam.yaw + ip * 0.18;
+  camera.rotation.z = (Math.random() - 0.5) * shakeAmt * 0.02;
+}
+
+/* ---------- dealer idle + reactions ---------- */
+let dealerReact = null, dealerThinking = false;
+function updateDealer(dt) {
+  torso.scale.set(1, 1 + Math.sin(time * 1.6) * 0.012, 1);
+  let ry = Math.sin(time * 0.45) * 0.18 + Math.sin(time * 1.1) * 0.04, rx = 0.08, rz = 0;
+  if (dealerThinking) { rz = 0.14; ry = Math.sin(time * 0.8) * 0.08; rx = 0.18; }
+  if (dealerReact) {
+    dealerReact.t += dt; const d = Math.max(0, 1 - dealerReact.t / 1.4);
+    if (dealerReact.type === 'nod') rx += Math.sin(dealerReact.t * 13) * 0.18 * d;
+    else ry += Math.sin(dealerReact.t * 11) * 0.3 * d;
+    if (d <= 0) dealerReact = null;
+  }
+  head.rotation.x += (rx - head.rotation.x) * Math.min(1, dt * 5);
+  head.rotation.y += (ry - head.rotation.y) * Math.min(1, dt * 5);
+  head.rotation.z += (rz - head.rotation.z) * Math.min(1, dt * 5);
+}
+function dealerNudge() {
+  const h = arms.L.hand, b = arms.L.base;
+  animate(0.32, (e, k) => { const s = Math.sin(Math.PI * k); h.position.set(b.x + s * 0.03, b.y + s * 0.025, b.z - s * 0.03); }, { ease: E.linear });
+}
+
+function updateWorld(dt) {
+  const arr = dust.geometry.attributes.position.array;
+  for (let i = 0; i < DUST; i++) {
+    const s = dustSeed[i];
+    arr[i * 3] += Math.sin(time * 0.3 + s) * 0.0004; arr[i * 3 + 2] += Math.cos(time * 0.25 + s) * 0.0004;
+    arr[i * 3 + 1] += 0.012 * dt * (0.5 + (s % 1));
+    if (arr[i * 3 + 1] > 1.85) arr[i * 3 + 1] = 0.85;
+  }
+  dust.geometry.attributes.position.needsUpdate = true;
+  lampBoost = Math.max(0, lampBoost - dt * 3);
+  const flick = Math.random() < 0.004 ? -0.4 : 0;
+  spot.intensity = SPOT_BASE + lampBoost + flick + Math.sin(time * 7) * 0.02;
+  bulb.material.color.setScalar(1).multiplyScalar(1 + lampBoost * 0.2);
+  glow.material.opacity = 0.85 + lampBoost * 0.06;
+  const nf = Math.random() < 0.01 ? 0.25 : 1;
+  neonMat1.opacity = nf; neonLight.intensity = 0.9 * nf;
+  lamp.rotation.z = Math.sin(time * 0.6) * 0.008;
+}
+
+/* =========================================================
+   Game rules
+   ========================================================= */
+const pv = (c) => (c.r >= 10 ? 0 : c.r);
+function evalHand(cards) {
+  const n = cards.length;
+  const pts = cards.reduce((s, c) => s + pv(c), 0) % 10;
+  const flush = cards.every((c) => c.s === cards[0].s);
+  if (n === 2) {
+    const pair = cards[0].r === cards[1].r;
+    const deng = flush || pair ? 2 : 1;
+    if (pts >= 8) return { cat: pts === 9 ? 7 : 6, pts, deng, tb: 0, name: `ป๊อก ${pts}`, pok: true };
+    return { cat: 0, pts, deng, tb: 0, name: `${pts} แต้ม` };
+  }
+  const rs = cards.map((c) => c.r).sort((a, b) => a - b);
+  let straight = rs[1] === rs[0] + 1 && rs[2] === rs[1] + 1, hi = rs[2];
+  if (!straight && rs[0] === 1 && rs[1] === 12 && rs[2] === 13) { straight = true; hi = 14; }
+  if (rs[0] === rs[2]) return { cat: 5, pts, deng: 5, tb: rs[0] === 1 ? 14 : rs[0], name: 'ตอง' };
+  if (straight && flush) return { cat: 4, pts, deng: 5, tb: hi, name: 'สเตรทฟลัช' };
+  if (straight) return { cat: 3, pts, deng: 3, tb: hi, name: 'เรียง' };
+  if (rs[0] >= 11) return { cat: 2, pts, deng: 3, tb: 0, name: 'เซียน' };
+  return { cat: 0, pts, deng: flush ? 3 : 1, tb: 0, name: `${pts} แต้ม` };
+}
+function compare(a, b) {
+  if (a.cat !== b.cat) return a.cat - b.cat;
+  if (a.cat === 0) return a.pts - b.pts;
+  return a.tb - b.tb;
+}
+const handText = (ev) => (ev.deng > 1 ? `${ev.name} · ${ev.deng} เด้ง` : ev.name);
+function newDeck() {
+  const d = [];
+  for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) d.push({ r, s });
+  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  return d;
+}
+
+/* =========================================================
+   State + UI
+   ========================================================= */
+const S = { phase: 'title', balance: 1000, bet: 0, lastBet: 0, rec: { w: 0, l: 0, t: 0 }, deck: [], player: [], dealer: [], betChips: [] };
+try {
+  const d = JSON.parse(localStorage.getItem('pokdeng-v1') || 'null');
+  if (d && typeof d.balance === 'number' && d.balance >= 0) { S.balance = d.balance; S.lastBet = d.lastBet || 0; S.rec = d.rec || S.rec; }
+} catch (e) { /* storage unavailable */ }
+function save() { try { localStorage.setItem('pokdeng-v1', JSON.stringify({ balance: S.balance, lastBet: S.lastBet, rec: S.rec })); } catch (e) { /* ignore */ } }
+
+const el = {
+  purse: $('#purse'), betv: $('#betv'), record: $('#record'), status: $('#status'),
+  rowBet: $('#row-bet'), rowDecide: $('#row-decide'), rowBroke: $('#row-broke'),
+  deal: $('#btn-deal'), clear: $('#btn-clear'), draw: $('#btn-draw'), stand: $('#btn-stand'),
+  banner: $('#banner'), lblP: $('#lbl-player'), lblD: $('#lbl-dealer'), hint: $('#hint'),
+};
+let statusOverride = null, statusTimer = 0;
+function say(msg, warn = false, ms = 1800) {
+  statusOverride = msg; el.status.classList.toggle('warn', warn); el.status.textContent = msg;
+  clearTimeout(statusTimer); statusTimer = setTimeout(() => { statusOverride = null; el.status.classList.remove('warn'); ui(); }, ms);
+}
+function ui() {
+  el.purse.textContent = fmt(S.balance - S.bet);
+  el.betv.textContent = fmt(S.bet);
+  el.record.textContent = `ชนะ ${S.rec.w} · แพ้ ${S.rec.l} · เสมอ ${S.rec.t}`;
+  const p = S.phase;
+  el.rowBet.hidden = !(p === 'bet' || p === 'title' || p === 'dealing' || p === 'dealer' || p === 'settle');
+  el.rowDecide.hidden = p !== 'decide';
+  el.rowBroke.hidden = p !== 'broke';
+  if (p === 'broke') el.rowBet.hidden = true;
+  const canBet = p === 'bet';
+  document.querySelectorAll('.chip').forEach((b) => { b.disabled = !canBet || S.bet + Number(b.dataset.v) > S.balance; });
+  el.clear.disabled = !canBet || S.bet === 0;
+  el.deal.disabled = !canBet || (S.bet === 0 && !(S.lastBet > 0 && S.lastBet <= S.balance));
+  el.deal.innerHTML = S.bet === 0 && S.lastBet > 0 && S.lastBet <= S.balance ? `แจกไพ่<small>แทง ${fmt(S.lastBet)} เท่าเดิม</small>` : 'แจกไพ่';
+  cam.tFocus = p === 'decide' ? -0.07 : p === 'dealer' || p === 'settle' ? 0.02 : 0;
+  if (statusOverride) return;
+  let msg = '';
+  if (p === 'bet') msg = S.bet > 0 ? 'กดแจกไพ่เมื่อพร้อม' : S.lastBet > 0 && S.lastBet <= S.balance ? 'เลือกชิปใหม่ หรือกดแจกไพ่เพื่อแทงเท่าเดิม' : 'เลือกชิปเพื่อวางเดิมพัน';
+  else if (p === 'dealing') msg = 'เจ้ามือกำลังแจกไพ่';
+  else if (p === 'decide') msg = `คุณได้ ${handText(evalHand(S.player.map((h) => h.c)))} จะจั่วอีกใบไหม`;
+  else if (p === 'dealer') msg = 'ตาเจ้ามือ';
+  else if (p === 'broke') msg = 'หมดตัวแล้ว เจ้ามือใจดีให้ยืมทุนเริ่มใหม่ได้';
+  el.status.textContent = msg;
+}
+let bannerTimer = 0;
+function banner(main, amt, sub, kind) {
+  const b = el.banner;
+  b.querySelector('.b-main').textContent = main; b.querySelector('.b-amt').textContent = amt || ''; b.querySelector('.b-sub').textContent = sub || '';
+  b.className = 'banner ' + kind; void b.offsetWidth; b.classList.add('show');
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), 3300);
+}
+function setLabel(which, text, cls = '') {
+  const l = which === 'player' ? el.lblP : el.lblD;
+  l.querySelector('.t').textContent = text;
+  l.className = 'hand-label show ' + cls;
+}
+function hideLabels() { el.lblP.className = 'hand-label'; el.lblD.className = 'hand-label'; }
+const LBL_P = new THREE.Vector3(0, T, 0.268), LBL_D = new THREE.Vector3(0, T, -0.12);
+const tmpV = new THREE.Vector3();
+function placeLabels() {
+  const w = window.innerWidth, h = window.innerHeight;
+  [[el.lblP, LBL_P], [el.lblD, LBL_D]].forEach(([l, v]) => {
+    tmpV.copy(v).project(camera);
+    const x = (tmpV.x * 0.5 + 0.5) * w, y = (-tmpV.y * 0.5 + 0.5) * h;
+    const tf = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+    l.style.setProperty('--tf', tf); l.style.transform = tf;
+    l.style.visibility = tmpV.z < 1 ? 'visible' : 'hidden';
+  });
+}
+
+/* ---------- betting ---------- */
+async function addChip(v, quiet) {
+  if (S.phase !== 'bet') return;
+  if (S.bet + v > S.balance) { Sound.deny(); say('เงินในกระเป๋าไม่พอสำหรับชิปนี้', true); return; }
+  S.bet += v;
+  const m = makeChip(v); m.position.copy(stashTop(v));
+  const idx = S.betChips.length; S.betChips.push({ m, v });
+  refreshStash(S.balance - S.bet);
+  ui();
+  await moveTo(m, { pos: pilePos(idx).add(new THREE.Vector3(rand(-0.002, 0.002), 0, rand(-0.002, 0.002))) }, 0.3, { arc: 0.07 });
+  if (!quiet || idx % 2 === 0) Sound.chip();
+}
+async function clearBet() {
+  if (S.phase !== 'bet' || !S.betChips.length) return;
+  const chips = S.betChips; S.betChips = []; S.bet = 0; ui();
+  Sound.coins(Math.min(4, chips.length));
+  await Promise.all(chips.map((c, i) => moveTo(c.m, { pos: STASH.clone().setY(T + 0.03) }, 0.3, { arc: 0.05, delay: i * 0.03 })));
+  chips.forEach((c) => scene.remove(c.m));
+  refreshStash(S.balance);
+}
+async function betLast() {
+  const parts = chipsFor(S.lastBet);
+  for (let i = 0; i < parts.length; i++) { addChip(parts[i], true); await wait(70); }
+  await wait(250);
+}
+
+/* ---------- dealing ---------- */
+function slot(who, i, n) {
+  return new THREE.Vector3((i - (n - 1) / 2) * 0.088, T + 0.0012 + i * 0.0006, who === 'player' ? 0.36 : -0.24);
+}
+async function dealTo(who) {
+  const hand = S[who]; const c = S.deck.pop(); const mesh = makeCard(c);
+  mesh.position.copy(DECK_TOP); mesh.rotation.set(Math.PI / 2, 0, 0.15);
+  const yaw = rand(-0.07, 0.07);
+  hand.push({ c, mesh, yaw });
+  const n = hand.length;
+  hand.forEach((h, i) => { if (h.mesh !== mesh) moveTo(h.mesh, { pos: slot(who, i, n) }, 0.28); });
+  dealerNudge(); Sound.deal();
+  await moveTo(mesh, { pos: slot(who, n - 1, n), rz: yaw + Math.PI * 2 }, 0.42, { arc: 0.07 });
+  Sound.land();
+  return hand[n - 1];
+}
+function flip(h, delay = 0) {
+  Sound.flip(delay + 0.05);
+  return moveTo(h.mesh, { pos: h.mesh.position.clone(), rx: -Math.PI / 2 }, 0.48, { arc: 0.07, delay, ease: E.inOutCubic });
+}
+const handCenter = (who) => new THREE.Vector3(0, T + 0.01, who === 'player' ? 0.36 : -0.24);
+const cardsOf = (who) => S[who].map((h) => h.c);
+
+async function clearTable() {
+  const all = [...S.player, ...S.dealer];
+  hideLabels();
+  if (all.length) Sound.sweep();
+  const done = all.map((h, i) => moveTo(h.mesh, { pos: DISCARD.clone().setY(T + 0.002 + i * 0.001), rx: Math.PI / 2, rz: rand(-0.4, 0.4) }, 0.4, { arc: 0.04, delay: i * 0.04 }).then(() => scene.remove(h.mesh)));
+  S.player = []; S.dealer = [];
+  clearConfetti();
+  await Promise.all(done);
+}
+
+async function startRound() {
+  if (S.phase !== 'bet') return;
+  if (S.bet === 0) {
+    if (S.lastBet > 0 && S.lastBet <= S.balance) await betLast();
+    else { Sound.deny(); say('วางชิปก่อนแจกไพ่', true); return; }
+  }
+  S.phase = 'dealing'; ui();
+  await clearTable();
+  S.deck = newDeck();
+  Sound.shuffle();
+  await wait(850);
+  for (let i = 0; i < 2; i++) { await dealTo('player'); await wait(60); await dealTo('dealer'); await wait(60); }
+  await wait(250);
+  await Promise.all(S.player.map((h, i) => flip(h, i * 0.18)));
+  const pe = evalHand(cardsOf('player')), de = evalHand(cardsOf('dealer'));
+  setLabel('player', handText(pe), pe.pok ? 'pok' : '');
+  if (pe.pok) { pokFx('player', pe); await wait(900); }
+  if (de.pok) {
+    dealerThinking = false;
+    await wait(250);
+    await Promise.all(S.dealer.map((h, i) => flip(h, i * 0.15)));
+    setLabel('dealer', handText(de), 'pok');
+    pokFx('dealer', de);
+    await wait(1000);
+    return settle();
+  }
+  if (pe.pok) { await revealDealer(); return settle(); }
+  S.phase = 'decide'; ui();
+}
+function pokFx(who, ev) {
+  Sound.gong(who === 'dealer');
+  shake(who === 'player' ? 1 : 0.7); lampFlash(who === 'player' ? 3 : 1.8);
+  burstSparks(handCenter(who), who === 'player' ? 110 : 60, who === 'player' ? 0xffd27a : 0xff7a7a);
+  banner(who === 'player' ? `ป๊อก ${ev.pts}!` : `เจ้ามือป๊อก ${ev.pts}`, '', ev.deng > 1 ? `${ev.deng} เด้ง` : '', 'pok');
+}
+async function playerDraw() {
+  if (S.phase !== 'decide') return;
+  S.phase = 'dealing'; ui();
+  const h = await dealTo('player');
+  await wait(120);
+  await flip(h);
+  const pe = evalHand(cardsOf('player'));
+  setLabel('player', handText(pe), pe.cat >= 2 ? 'pok' : '');
+  if (pe.cat >= 2) { Sound.win(false); burstSparks(handCenter('player'), 70); lampFlash(1.5); }
+  await wait(500);
+  dealerTurn();
+}
+function playerStand() {
+  if (S.phase !== 'decide') return;
+  Sound.tick();
+  dealerTurn();
+}
+async function dealerTurn() {
+  S.phase = 'dealer'; ui();
+  dealerThinking = true;
+  el.status.textContent = 'เจ้ามือแอบดูไพ่ตัวเอง';
+  await wait(700);
+  Sound.knock();
+  await wait(500);
+  const de = evalHand(cardsOf('dealer'));
+  const drawIt = de.pts <= 3 || (de.pts === 4 && Math.random() < 0.5);
+  dealerThinking = false;
+  if (drawIt) { el.status.textContent = 'เจ้ามือจั่วเพิ่ม'; await dealTo('dealer'); await wait(300); }
+  else { el.status.textContent = 'เจ้ามือไม่จั่ว'; await wait(500); }
+  await revealDealer();
+  settle();
+}
+async function revealDealer() {
+  await Promise.all(S.dealer.map((h, i) => flip(h, i * 0.3)));
+  setLabel('dealer', handText(evalHand(cardsOf('dealer'))));
+  await wait(350);
+}
+
+async function settle() {
+  S.phase = 'settle'; ui();
+  const pe = evalHand(cardsOf('player')), de = evalHand(cardsOf('dealer'));
+  const c = compare(pe, de);
+  const bet = S.bet;
+  let delta = 0;
+  if (c > 0) delta = bet * pe.deng;
+  else if (c < 0) delta = -Math.min(S.balance, bet * de.deng);
+  const pile = S.betChips; S.betChips = [];
+  el.status.textContent = '';
+
+  if (c > 0) {
+    S.rec.w++;
+    setLabel('player', handText(pe), 'win'); setLabel('dealer', handText(de), 'lose');
+    const big = pe.deng >= 3 || pe.pok;
+    Sound.win(big); dealerReact = { type: 'shake', t: 0 };
+    burstConfetti(handCenter('player'), big ? 160 : 80); lampFlash(big ? 2 : 1); if (big) shake(0.5);
+    banner('ชนะ', `+${fmt(delta)}`, pe.deng > 1 ? `${handText(pe)} ได้ ${pe.deng} เท่า` : `${pe.name} ชนะ ${de.name}`, 'win');
+    const pay = chipsFor(delta);
+    const payMeshes = pay.map((v) => { const m = makeChip(v); m.position.copy(BANK_TOP); return m; });
+    const base = BET_POS.clone().add(new THREE.Vector3(0.05 + Math.floor(pile.length / 14) * 0.048, 0, 0));
+    await Promise.all(payMeshes.map((m, i) => moveTo(m, { pos: pilePos(i, base) }, 0.42, { arc: 0.08, delay: i * 0.07 }).then(() => { if (i % 2 === 0) Sound.chip(); })));
+    await wait(700);
+    const all = pile.map((p) => p.m).concat(payMeshes);
+    Sound.coins(3);
+    await Promise.all(all.map((m, i) => moveTo(m, { pos: STASH.clone().setY(T + 0.03) }, 0.35, { arc: 0.05, delay: i * 0.025 })));
+    all.forEach((m) => scene.remove(m));
+  } else if (c < 0) {
+    S.rec.l++;
+    setLabel('player', handText(pe), 'lose'); setLabel('dealer', handText(de), 'win');
+    Sound.lose(); vignetteHit(); shake(0.35); dealerReact = { type: 'nod', t: 0 };
+    banner('แพ้', `−${fmt(-delta)}`, de.deng > 1 ? `เจ้ามือได้ ${handText(de)} เสีย ${de.deng} เท่า` : `${de.name} ชนะ ${pe.name}`, 'lose');
+    await wait(500);
+    const extra = -delta - bet;
+    const extraMeshes = extra > 0 ? chipsFor(extra).map((v) => { const m = makeChip(v); m.position.copy(stashTop(v)); return m; }) : [];
+    if (extra > 0) refreshStash(S.balance + delta);
+    const all = pile.map((p) => p.m).concat(extraMeshes);
+    Sound.coins(Math.min(5, all.length));
+    await Promise.all(all.map((m, i) => moveTo(m, { pos: BANK_TOP }, 0.45, { arc: 0.08, delay: i * 0.04 })));
+    all.forEach((m) => scene.remove(m));
+  } else {
+    S.rec.t++;
+    setLabel('player', handText(pe)); setLabel('dealer', handText(de));
+    Sound.tie();
+    banner('เสมอ', '', `${pe.name} เท่ากับ ${de.name} ได้เงินคืน`, 'tie');
+    await wait(700);
+    await Promise.all(pile.map((p, i) => moveTo(p.m, { pos: STASH.clone().setY(T + 0.03) }, 0.35, { arc: 0.05, delay: i * 0.03 })));
+    pile.forEach((p) => scene.remove(p.m));
+    Sound.coins(2);
+  }
+  S.balance = Math.max(0, S.balance + delta);
+  S.lastBet = bet; S.bet = 0;
+  refreshStash(S.balance);
+  save();
+  S.phase = S.balance <= 0 ? 'broke' : 'bet';
+  ui();
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => addChip(Number(b.dataset.v))));
+el.clear.addEventListener('click', clearBet);
+el.deal.addEventListener('click', startRound);
+el.draw.addEventListener('click', playerDraw);
+el.stand.addEventListener('click', playerStand);
+$('#btn-loan').addEventListener('click', () => {
+  S.balance = 1000; S.lastBet = 0; save(); refreshStash(S.balance);
+  Sound.coins(6); dealerReact = { type: 'nod', t: 0 };
+  S.phase = 'bet'; ui(); say('ได้ทุนมา ฿1,000 เล่นต่อได้เลย');
+});
+document.querySelectorAll('button').forEach((b) => b.addEventListener('pointerenter', () => { if (!b.disabled && S.phase !== 'title') Sound.tick(); }));
+const sndBtn = $('#btn-sound'), musBtn = $('#btn-music');
+function toggleSound() { Sound.setOn(!Sound.on); sndBtn.setAttribute('aria-pressed', String(Sound.on)); }
+sndBtn.addEventListener('click', toggleSound);
+musBtn.addEventListener('click', () => { Sound.setMusic(!Sound.musicOn); musBtn.setAttribute('aria-pressed', String(Sound.musicOn)); });
+const rules = $('#rules');
+$('#btn-rules').addEventListener('click', () => { rules.hidden = false; $('#btn-rules-close').focus(); });
+$('#btn-rules-close').addEventListener('click', () => { rules.hidden = true; });
+rules.addEventListener('click', (e) => { if (e.target === rules) rules.hidden = true; });
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.key === 'Escape') { rules.hidden = true; return; }
+  if (S.phase === 'title' || !rules.hidden) return;
+  const k = e.key.toLowerCase();
+  if (k === 'm') toggleSound();
+  else if (S.phase === 'bet' && ['1', '2', '3', '4'].includes(k)) addChip([10, 50, 100, 500][Number(k) - 1]);
+  else if (k === ' ' || k === 'enter') { e.preventDefault(); if (S.phase === 'bet') startRound(); else if (S.phase === 'decide') playerStand(); }
+  else if (k === 'd' && S.phase === 'decide') playerDraw();
+  else if (k === 's' && S.phase === 'decide') playerStand();
+  else if (k === 'c' && S.phase === 'bet') clearBet();
+});
+
+if (matchMedia('(pointer: coarse)').matches) el.hint.textContent = 'ลากนิ้วบนโต๊ะเพื่อมองรอบ ๆ';
+if (S.balance !== 1000 || S.rec.w + S.rec.l + S.rec.t > 0) $('#start-note').textContent = `เงินจากคราวก่อน ${fmt(S.balance)} · มีเสียงประกอบ แนะนำให้ใส่หูฟัง`;
+
+$('#btn-start').addEventListener('click', () => {
+  Sound.init();
+  $('#title').classList.add('gone');
+  Sound.chip(); Sound.chip(0.08);
+  animate(1.8, (e) => { cam.intro = 1 - e; }, { ease: E.inOutCubic }).then(() => {
+    if (S.balance <= 0) { S.phase = 'broke'; } else S.phase = 'bet';
+    ui();
+  });
+});
+
+document.fonts && document.fonts.ready.then(() => { felt.redraw(); neon1.redraw(); neon2.redraw(); });
+
+refreshStash(S.balance);
+ui();
+el.status.textContent = '';
+
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t; time += dt;
+  updateAnims(dt); updateCamera(dt); updateDealer(dt); updateWorld(dt); updateFx(dt);
+  renderer.render(scene, camera);
+  placeLabels();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
