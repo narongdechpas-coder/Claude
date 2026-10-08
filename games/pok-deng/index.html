@@ -399,6 +399,10 @@ scene.background = new THREE.Color(0x0b0807);
 scene.fog = new THREE.Fog(0x0b0807, 2.6, 7.5);
 const camera = new THREE.PerspectiveCamera(66, 1, 0.01, 40);
 camera.rotation.order = 'YXZ';
+scene.add(camera);
+// cards the player picks up ride on this group, so they stay in front of the eyes
+const hold = new THREE.Group(); camera.add(hold);
+const handLight = new THREE.PointLight(0xffe2b8, 1.25, 0.9, 2); handLight.position.set(0, 0.14, -0.08); camera.add(handLight);
 
 const T = 0.74;              // table top height
 const CW = 0.075, CH = 0.105; // card size
@@ -673,7 +677,7 @@ const backMat = std({ map: backTex, roughness: 0.45, alphaTest: 0.5 });
 const faceCache = {};
 function faceMat(c) {
   const k = c.r + '-' + c.s;
-  if (!faceCache[k]) faceCache[k] = std({ map: dynTex(256, 358, drawFace(c)).tex, roughness: 0.42, alphaTest: 0.5 });
+  if (!faceCache[k]) faceCache[k] = std({ map: dynTex(384, 537, (g) => { g.scale(1.5, 1.5); drawFace(c)(g, 256, 358); }).tex, roughness: 0.42, alphaTest: 0.5 });
   return faceCache[k];
 }
 function makeCard(c) {
@@ -776,11 +780,12 @@ function updateAnims(dt) {
 function moveTo(obj, to, dur, { arc = 0, delay = 0, ease = E.outCubic } = {}) {
   let from = null;
   return animate(dur, (e, k) => {
-    if (!from) from = { p: obj.position.clone(), rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z };
+    if (!from) from = { p: obj.position.clone(), q: obj.quaternion.clone(), rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z };
     if (to.pos) { obj.position.lerpVectors(from.p, to.pos, e); if (arc) obj.position.y += Math.sin(Math.PI * k) * arc; }
     if (to.rx !== undefined) obj.rotation.x = from.rx + (to.rx - from.rx) * e;
     if (to.ry !== undefined) obj.rotation.y = from.ry + (to.ry - from.ry) * e;
     if (to.rz !== undefined) obj.rotation.z = from.rz + (to.rz - from.rz) * e;
+    if (to.q) obj.quaternion.copy(from.q).slerp(to.q, e);
   }, { delay, ease });
 }
 
@@ -886,6 +891,7 @@ function updateCamera(dt) {
   camera.rotation.x = basePitch + cam.focus + cam.pitch - ip * 0.12;
   camera.rotation.y = cam.yaw + ip * 0.18;
   camera.rotation.z = (Math.random() - 0.5) * shakeAmt * 0.02;
+  hold.position.set((cam.yaw - cam.tYaw) * 0.05, Math.sin(time * 1.3) * 0.0018 + (cam.pitch - cam.tPitch) * 0.04, 0);
 }
 
 /* ---------- dealer idle + reactions ---------- */
@@ -999,7 +1005,7 @@ function ui() {
   el.clear.disabled = !canBet || S.bet === 0;
   el.deal.disabled = !canBet || (S.bet === 0 && !(S.lastBet > 0 && S.lastBet <= S.balance));
   el.deal.innerHTML = S.bet === 0 && S.lastBet > 0 && S.lastBet <= S.balance ? `แจกไพ่<small>แทง ${fmt(S.lastBet)} เท่าเดิม</small>` : 'แจกไพ่';
-  cam.tFocus = p === 'decide' ? -0.07 : p === 'dealer' || p === 'settle' ? 0.02 : 0;
+  cam.tFocus = p === 'dealer' || p === 'settle' ? 0.02 : 0;
   if (statusOverride) return;
   let msg = '';
   if (p === 'bet') msg = S.bet > 0 ? 'กดแจกไพ่เมื่อพร้อม' : S.lastBet > 0 && S.lastBet <= S.balance ? 'เลือกชิปใหม่ หรือกดแจกไพ่เพื่อแทงเท่าเดิม' : 'เลือกชิปเพื่อวางเดิมพัน';
@@ -1026,8 +1032,10 @@ const LBL_P = new THREE.Vector3(0, T, 0.268), LBL_D = new THREE.Vector3(0, T, -0
 const tmpV = new THREE.Vector3();
 function placeLabels() {
   const w = window.innerWidth, h = window.innerHeight;
+  const held = S.player.some((h) => h.held);
   [[el.lblP, LBL_P], [el.lblD, LBL_D]].forEach(([l, v]) => {
-    tmpV.copy(v).project(camera);
+    if (l === el.lblP && held) hold.localToWorld(tmpV.copy(holdLabelPos())); else tmpV.copy(v);
+    tmpV.project(camera);
     const x = (tmpV.x * 0.5 + 0.5) * w, y = (-tmpV.y * 0.5 + 0.5) * h;
     const tf = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
     l.style.setProperty('--tf', tf); l.style.transform = tf;
@@ -1071,7 +1079,7 @@ async function dealTo(who) {
   const yaw = rand(-0.07, 0.07);
   hand.push({ c, mesh, yaw });
   const n = hand.length;
-  hand.forEach((h, i) => { if (h.mesh !== mesh) moveTo(h.mesh, { pos: slot(who, i, n) }, 0.28); });
+  hand.forEach((h, i) => { if (h.mesh !== mesh && !h.held) moveTo(h.mesh, { pos: slot(who, i, n) }, 0.28); });
   dealerNudge(); Sound.deal();
   await moveTo(mesh, { pos: slot(who, n - 1, n), rz: yaw + Math.PI * 2 }, 0.42, { arc: 0.07 });
   Sound.land();
@@ -1081,11 +1089,53 @@ function flip(h, delay = 0) {
   Sound.flip(delay + 0.05);
   return moveTo(h.mesh, { pos: h.mesh.position.clone(), rx: -Math.PI / 2 }, 0.48, { arc: 0.07, delay, ease: E.inOutCubic });
 }
-const handCenter = (who) => new THREE.Vector3(0, T + 0.01, who === 'player' ? 0.36 : -0.24);
+/* ---------- cards held in the player's hand ---------- */
+const TILT = -0.3;
+const holdZ = () => (camera.aspect < 0.8 ? -0.3 : -0.32);
+const holdY = () => (camera.aspect < 0.8 ? -0.088 : -0.068);
+function heldPose(i, n) {
+  const c = i - (n - 1) / 2;
+  return { pos: new THREE.Vector3(c * 0.05, holdY() - Math.abs(c) * 0.007, holdZ() + i * 0.003), rz: -c * 0.16 };
+}
+const qE = (x, y, z) => new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+const backQ = (i, n) => qE(TILT, Math.PI, -heldPose(i, n).rz);
+const faceQ = (i, n) => qE(TILT, 0, heldPose(i, n).rz);
+const holdLabelPos = () => (camera.aspect < 0.8 ? new THREE.Vector3(0, -0.018, holdZ()) : new THREE.Vector3(0.14, holdY() + 0.01, holdZ()));
+// lift a face-down card off the felt into the fan, back still facing you
+function pickUp(h, i, n, delay = 0) {
+  hold.attach(h.mesh); h.held = true; h.open = false;
+  Sound.deal();
+  return moveTo(h.mesh, { pos: heldPose(i, n).pos, q: backQ(i, n) }, 0.5, { delay, ease: E.inOutCubic });
+}
+// turn a held card toward you; slow = squeeze it open
+function reveal(h, i, n, { delay = 0, slow = false } = {}) {
+  h.open = true;
+  Sound.flip(delay + (slow ? 0.45 : 0.1));
+  return moveTo(h.mesh, { pos: heldPose(i, n).pos.add(new THREE.Vector3(0, 0.004, 0.012)), q: faceQ(i, n) }, slow ? 1.0 : 0.45, { delay, ease: slow ? E.inOutCubic : E.outCubic })
+    .then(() => moveTo(h.mesh, { pos: heldPose(i, n).pos }, 0.15));
+}
+function refan(n) {
+  return Promise.all(S.player.map((h, i) => (h.held ? moveTo(h.mesh, { pos: heldPose(i, n).pos, q: h.open ? faceQ(i, n) : backQ(i, n) }, 0.35, { ease: E.inOutCubic }) : null)));
+}
+// lay the hand face up on the felt for the showdown
+async function layDownPlayer() {
+  const n = S.player.length;
+  if (!S.player.some((h) => h.held)) return;
+  await Promise.all(S.player.map((h, i) => {
+    if (!h.held) return null;
+    h.held = false; scene.attach(h.mesh);
+    return moveTo(h.mesh, { pos: slot('player', i, n), q: qE(-Math.PI / 2, 0, h.yaw) }, 0.45, { arc: 0.04, delay: i * 0.09, ease: E.inOutCubic }).then(() => Sound.land());
+  }));
+}
+const handCenter = (who) => {
+  if (who === 'player' && S.player.some((h) => h.held)) return hold.localToWorld(new THREE.Vector3(0, -0.07, holdZ()));
+  return new THREE.Vector3(0, T + 0.01, who === 'player' ? 0.36 : -0.24);
+};
 const cardsOf = (who) => S[who].map((h) => h.c);
 
 async function clearTable() {
   const all = [...S.player, ...S.dealer];
+  all.forEach((h) => { if (h.held) { scene.attach(h.mesh); h.held = false; } });
   hideLabels();
   if (all.length) Sound.sweep();
   const done = all.map((h, i) => moveTo(h.mesh, { pos: DISCARD.clone().setY(T + 0.002 + i * 0.001), rx: Math.PI / 2, rz: rand(-0.4, 0.4) }, 0.4, { arc: 0.04, delay: i * 0.04 }).then(() => scene.remove(h.mesh)));
@@ -1107,13 +1157,16 @@ async function startRound() {
   await wait(850);
   for (let i = 0; i < 2; i++) { await dealTo('player'); await wait(60); await dealTo('dealer'); await wait(60); }
   await wait(250);
-  await Promise.all(S.player.map((h, i) => flip(h, i * 0.18)));
+  await Promise.all(S.player.map((h, i) => pickUp(h, i, 2, i * 0.14)));
+  await reveal(S.player[0], 0, 2);
+  await reveal(S.player[1], 1, 2, { slow: true });
   const pe = evalHand(cardsOf('player')), de = evalHand(cardsOf('dealer'));
   setLabel('player', handText(pe), pe.pok ? 'pok' : '');
   if (pe.pok) { pokFx('player', pe); await wait(900); }
   if (de.pok) {
     dealerThinking = false;
     await wait(250);
+    await layDownPlayer();
     await Promise.all(S.dealer.map((h, i) => flip(h, i * 0.15)));
     setLabel('dealer', handText(de), 'pok');
     pokFx('dealer', de);
@@ -1133,8 +1186,10 @@ async function playerDraw() {
   if (S.phase !== 'decide') return;
   S.phase = 'dealing'; ui();
   const h = await dealTo('player');
-  await wait(120);
-  await flip(h);
+  await wait(80);
+  refan(3);
+  await pickUp(h, 2, 3);
+  await reveal(h, 2, 3, { slow: true });
   const pe = evalHand(cardsOf('player'));
   setLabel('player', handText(pe), pe.cat >= 2 ? 'pok' : '');
   if (pe.cat >= 2) { Sound.win(false); burstSparks(handCenter('player'), 70); lampFlash(1.5); }
@@ -1162,6 +1217,8 @@ async function dealerTurn() {
   settle();
 }
 async function revealDealer() {
+  await layDownPlayer();
+  await wait(150);
   await Promise.all(S.dealer.map((h, i) => flip(h, i * 0.3)));
   setLabel('dealer', handText(evalHand(cardsOf('dealer'))));
   await wait(350);
@@ -1169,6 +1226,7 @@ async function revealDealer() {
 
 async function settle() {
   S.phase = 'settle'; ui();
+  await layDownPlayer();
   const pe = evalHand(cardsOf('player')), de = evalHand(cardsOf('dealer'));
   const c = compare(pe, de);
   const bet = S.bet;
