@@ -301,8 +301,12 @@ mark{background:var(--sign-soft);color:var(--sign-ink);padding:1px 3px;border-ra
 .split{display:contents}
 .split > .ca,.split > .cb{display:contents}
 .desk-only{display:none!important}
+.hgrid{display:contents}
 @media (min-width:900px){
   .wrap.wide{max-width:1080px}
+  .hgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero calc" "needs how";gap:20px;align-items:stretch}
+  .hgrid > .hero{align-self:center;padding-top:0}
+  .hgrid .needs{flex:1;grid-template-columns:1fr 1fr;align-content:stretch}
   .split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
   .split > .ca,.split > .cb{display:flex;flex-direction:column;gap:18px;min-width:0}
   .split > .cb.sticky{position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px)}
@@ -565,8 +569,8 @@ function renderClaimant() {
 
 function home() {
   const r = RATES[UI.calc.type].rate, d = Math.max(0, Number(UI.calc.days) || 0);
-  return `<div class="split"><div class="ca">
-  <section class="hero" style="order:1">
+  return `<div class="hgrid">
+  <section class="hero" style="grid-area:hero">
     <p class="eyebrow">สำหรับคู่กรณีฝ่ายถูก</p>
     <h1>รถถูกชนจนต้องจอดซ่อม? ขอค่าขาดประโยชน์ได้ที่นี่</h1>
     <p class="lede">กรอกข้อมูล 4 ขั้น ใช้เวลาประมาณ 5 นาที แล้วติดตามผลจนเงินเข้าบัญชีได้จากมือถือ ไม่ต้องเดินทางมาที่บริษัท</p>
@@ -575,17 +579,7 @@ function home() {
       <button class="btn ghost" data-a="goTrack">ติดตามคำร้องเดิม</button>
     </div>
   </section>
-  <section class="card" style="order:3">
-    <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
-    <div class="needs">
-      <div><b>เลขเคลม</b>อยู่บนใบที่พนักงานสำรวจภัยให้ ณ จุดเกิดเหตุ</div>
-      <div><b>บัตรประชาชน + ทะเบียนรถ</b>ถ่ายรูปด้วยมือถือได้</div>
-      <div><b>ใบรับรถเข้าซ่อม</b>ขอจากอู่หรือศูนย์บริการ</div>
-      <div><b>หน้าสมุดบัญชี</b>ชื่อบัญชีตรงกับเจ้าของรถ</div>
-    </div>
-  </section>
-  </div><div class="cb">
-  <section class="card" style="order:2">
+  <section class="card" style="grid-area:calc">
     <h3>ลองคำนวณยอดเบื้องต้น</h3>
     <div class="grid2">
       <div class="field"><label for="calcType">ประเภทรถ</label>
@@ -600,8 +594,16 @@ function home() {
     </div>
     <p class="small muted">เป็นการประมาณตามอัตราต่อวันของประเภทรถ ยอดจริงขึ้นกับจำนวนวันซ่อมที่สมเหตุสมผลและการพิจารณาของบริษัท</p>
   </section>
-
-  <section class="card" style="order:4">
+  <section class="card" style="grid-area:needs">
+    <h3>เตรียม 4 อย่างนี้ไว้ก่อน</h3>
+    <div class="needs">
+      <div><b>เลขเคลม</b>อยู่บนใบที่พนักงานสำรวจภัยให้ ณ จุดเกิดเหตุ</div>
+      <div><b>บัตรประชาชน + ทะเบียนรถ</b>ถ่ายรูปด้วยมือถือได้</div>
+      <div><b>ใบรับรถเข้าซ่อม</b>ขอจากอู่หรือศูนย์บริการ</div>
+      <div><b>หน้าสมุดบัญชี</b>ชื่อบัญชีตรงกับเจ้าของรถ</div>
+    </div>
+  </section>
+  <section class="card" style="grid-area:how">
     <h3>หลังจากยื่นแล้ว</h3>
     <ol class="howlist">
       <li><div><b>เจ้าหน้าที่ตรวจเอกสาร</b><br><span class="small muted">ภายใน 2 วันทำการ ถ้าขาดอะไรจะแจ้งทาง SMS</span></div></li>
@@ -610,7 +612,7 @@ function home() {
       <li><div><b>เงินเข้าบัญชีพร้อมหนังสือยืนยัน</b><br><span class="small muted">ดาวน์โหลดเก็บไว้เป็นหลักฐานได้</span></div></li>
     </ol>
   </section>
-  </div></div>`;
+  </div>`;
 }
 
 const WSTEPS = ['ตรวจสิทธิ์', 'ยืนยันตัวตน', 'ข้อมูลการซ่อม', 'เอกสาร', 'ตรวจทาน'];
