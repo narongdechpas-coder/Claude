@@ -166,7 +166,7 @@
     <div class="row" id="row-broke" hidden>
       <button class="act" id="btn-loan" type="button">ขอยืมทุนเจ้ามือ ฿1,000</button>
     </div>
-    <div class="hint" id="hint">ขยับเมาส์เพื่อมองรอบโต๊ะ · คีย์ลัด 1–4 ลงชิป · Space แจกไพ่ / ไม่จั่ว · D จั่ว · M ปิดเสียง</div>
+    <div class="hint" id="hint">คีย์ลัด 1–4 ลงชิป · Space แจกไพ่ / ไม่จั่ว · D จั่ว · M ปิดเสียง</div>
   </footer>
 
   <div class="title" id="title">
@@ -561,14 +561,58 @@ const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.007, m
 scene.add(dust);
 
 /* ---------- dealer ---------- */
-function limb(a, b, r, mat) {
+function limb(a, b, r, mat, r2 = r * 0.88) {
   const d = new THREE.Vector3().subVectors(b, a); const len = d.length();
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.88, len, 14), mat);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r, len, 18), mat);
   m.position.copy(a).addScaledVector(d, 0.5);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   m.castShadow = true; return m;
 }
-const skin = std({ color: 0xb98563, roughness: 0.6 });
+function ball(r, mat, pos, scale) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat);
+  if (pos) m.position.copy(pos);
+  if (scale) m.scale.set(scale[0], scale[1], scale[2]);
+  m.castShadow = true; return m;
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const skin = std({ color: 0x9a6446, roughness: 0.58 });
+const lipMat = std({ color: 0x8a4c3a, roughness: 0.5 });
+const hairMat = std({ color: 0x1a1410, roughness: 0.85 });
+// a palm-down hand; local +z points along the fingers, thumbSide +1 puts the thumb on local +x
+function makeHand(mat, thumbSide) {
+  const g = new THREE.Group();
+  g.add(ball(1, mat, V(0, 0.014, 0.038), [0.038, 0.015, 0.046]));
+  const fingers = [[-0.022, 0.034], [-0.0075, 0.042], [0.0075, 0.044], [0.022, 0.039]];
+  fingers.forEach(([x, len], i) => {
+    const fx = x * -thumbSide, base = V(fx, 0.012, 0.074 - Math.abs(fx) * 0.25);
+    const mid = base.clone().add(V(fx * 0.12, -0.002, len * 0.55));
+    const tip = base.clone().add(V(fx * 0.2, -0.008, len));
+    const r = i === 0 ? 0.0062 : 0.0072;
+    g.add(limb(base, mid, r, mat, r * 0.95)); g.add(ball(r * 0.95, mat, mid));
+    g.add(limb(mid, tip, r * 0.95, mat, r * 0.85)); g.add(ball(r * 0.85, mat, tip));
+  });
+  const tb = V(0.03 * thumbSide, 0.01, 0.03), tm = V(0.046 * thumbSide, 0.006, 0.055), tt = V(0.052 * thumbSide, 0.004, 0.076);
+  g.add(limb(tb, tm, 0.0095, mat, 0.0085)); g.add(ball(0.0085, mat, tm));
+  g.add(limb(tm, tt, 0.0085, mat, 0.0075)); g.add(ball(0.0075, mat, tt));
+  return g;
+}
+// sculpt a sphere into a head: taller, narrower jaw, slight chin and a fuller back
+function headGeo(r, segW, segH, thetaLen = Math.PI) {
+  const geo = new THREE.SphereGeometry(r, segW, segH, 0, Math.PI * 2, 0, thetaLen);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const ny = y / r, nz = z / r;
+    if (ny < 0) { x *= 1 - 0.3 * -ny; z *= 1 - (nz < 0 ? 0.25 : 0.08) * -ny; }
+    if (ny < -0.55 && nz > 0.2) z += 0.012 * (-ny - 0.55) / 0.45;
+    if (nz > 0.55) z *= 0.96;
+    if (nz < -0.3 && ny > -0.3) z *= 1.06;
+    y *= 1.07;
+    p.setXYZ(i, x, y, z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 const shirtTex = dynTex(512, 512, (g, w, h) => {
   g.fillStyle = '#6d1a26'; g.fillRect(0, 0, w, h);
   for (let i = 0; i < 46; i++) {
@@ -579,38 +623,86 @@ const shirtTex = dynTex(512, 512, (g, w, h) => {
     g.fillStyle = 'rgba(40,90,50,0.8)'; g.beginPath(); g.ellipse(x + s, y + s * 0.4, s * 0.5, s * 0.16, 0.7, 0, Math.PI * 2); g.fill();
   }
 }).tex;
-shirtTex.wrapS = shirtTex.wrapT = THREE.RepeatWrapping; shirtTex.repeat.set(2, 1);
+shirtTex.wrapS = shirtTex.wrapT = THREE.RepeatWrapping; shirtTex.repeat.set(3, 1.4);
 const shirt = std({ map: shirtTex, roughness: 0.8 });
 const dealer = new THREE.Group(); dealer.position.set(0, 0, -0.8); scene.add(dealer);
-const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.21, 0.55, 24), shirt); torso.position.y = 1.03; torso.castShadow = true; dealer.add(torso);
-const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.21, 24, 16), shirt); shoulders.scale.set(1.05, 0.42, 0.72); shoulders.position.y = 1.29; shoulders.castShadow = true; dealer.add(shoulders);
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 12), skin); neck.position.y = 1.36; dealer.add(neck);
-const chain = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.005, 8, 32), std({ color: 0xe0b04a, metalness: 1, roughness: 0.25 }));
-chain.rotation.x = Math.PI / 2 - 0.3; chain.position.set(0, 1.33, 0.02); dealer.add(chain);
-const head = new THREE.Group(); head.position.y = 1.46; dealer.add(head);
-const skull = new THREE.Mesh(new THREE.SphereGeometry(0.1, 28, 20), skin); skull.scale.set(0.95, 1.1, 1); skull.castShadow = true; head.add(skull);
-const hair = new THREE.Mesh(new THREE.SphereGeometry(0.104, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), std({ color: 0x15100d, roughness: 0.9 }));
-hair.scale.set(0.97, 1.0, 1.04); hair.position.set(0, 0.018, -0.008); head.add(hair);
-const lensMat = std({ color: 0x050505, metalness: 0.7, roughness: 0.08 });
-[-0.036, 0.036].forEach((x) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.03, 0.012), lensMat); l.position.set(x, 0.012, 0.092); head.add(l); });
-const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.01), lensMat); bridge.position.set(0, 0.022, 0.097); head.add(bridge);
-const stache = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.01, 0.012), std({ color: 0x15100d })); stache.position.set(0, -0.045, 0.094); head.add(stache);
+
+// red plastic shop chair behind him
+const chairMat = std({ color: 0xa3161f, roughness: 0.35 });
+const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.025), chairMat); chairBack.position.set(0, 0.98, -0.17); chairBack.rotation.x = -0.12; chairBack.castShadow = true; dealer.add(chairBack);
+const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 0.42), chairMat); chairSeat.position.set(0, 0.47, 0.02); dealer.add(chairSeat);
+
+// torso: a lathe with waist, belly, chest and shoulder slope, flattened front to back
+const torsoProfile = [[0, 0.5], [0.15, 0.5], [0.17, 0.62], [0.178, 0.78], [0.182, 0.9], [0.175, 1.0], [0.182, 1.1], [0.19, 1.19], [0.178, 1.255], [0.14, 1.3], [0.085, 1.325], [0.05, 1.335], [0, 1.335]].map(([r, y]) => new THREE.Vector2(r, y));
+const torso = new THREE.Mesh(new THREE.LatheGeometry(torsoProfile, 40), shirt);
+torso.scale.set(1, 1, 0.66); torso.castShadow = true; dealer.add(torso);
+// open collar showing skin, with the gold chain on top
+dealer.add(ball(1, skin, V(0, 1.29, 0.085), [0.042, 0.05, 0.012]));
+[-1, 1].forEach((s) => {
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.006), shirt);
+  flap.position.set(0.03 * s, 1.3, 0.098); flap.rotation.set(-0.35, 0.25 * s, 0.5 * s); flap.castShadow = true; dealer.add(flap);
+});
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.056, 0.11, 20), skin); neck.position.set(0, 1.375, 0.005); neck.castShadow = true; dealer.add(neck);
+const chain = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.0045, 8, 40), std({ color: 0xe0b04a, metalness: 1, roughness: 0.25 }));
+chain.rotation.x = Math.PI / 2 - 0.45; chain.position.set(0, 1.33, 0.03); dealer.add(chain);
+
+const head = new THREE.Group(); head.position.set(0, 1.475, 0.01); dealer.add(head);
+const skull = new THREE.Mesh(headGeo(0.095, 48, 36), skin); skull.castShadow = true; head.add(skull);
+const hair = new THREE.Mesh(headGeo(0.099, 48, 18, Math.PI * 0.5), hairMat);
+hair.rotation.x = -0.32; hair.position.set(0, 0.006, -0.006); head.add(hair);
+[-1, 1].forEach((s) => {
+  head.add(ball(1, hairMat, V(0.083 * s, 0.02, -0.01), [0.018, 0.04, 0.05]));                  // sideburn / side hair
+  const ear = ball(1, skin, V(0.091 * s, -0.003, -0.008), [0.01, 0.026, 0.017]); ear.rotation.y = 0.3 * s; head.add(ear);
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.0055, 0.008), hairMat);
+  brow.position.set(0.032 * s, 0.043, 0.088); brow.rotation.set(0, 0.25 * s, -0.12 * s); head.add(brow);
+});
+const nose = ball(1, skin, V(0, -0.002, 0.098), [0.011, 0.028, 0.014]); nose.rotation.x = -0.25; head.add(nose);
+head.add(ball(1, skin, V(0, -0.025, 0.104), [0.014, 0.011, 0.011]));                            // nose tip
+[-1, 1].forEach((s) => head.add(ball(1, skin, V(0.011 * s, -0.027, 0.099), [0.008, 0.007, 0.008])));
+head.add(ball(1, hairMat, V(0, -0.041, 0.097), [0.025, 0.005, 0.008]));                         // moustache
+head.add(ball(1, lipMat, V(0, -0.052, 0.093), [0.02, 0.0045, 0.008]));
+head.add(ball(1, lipMat, V(0, -0.059, 0.09), [0.017, 0.005, 0.008]));
+head.add(ball(1, skin, V(0, -0.078, 0.07), [0.022, 0.012, 0.012]));                            // chin
+// aviator sunglasses
+const lensMat = std({ color: 0x0a0806, metalness: 0.8, roughness: 0.06 });
+const frameMat = std({ color: 0xc9a24a, metalness: 1, roughness: 0.3 });
+[-1, 1].forEach((s) => {
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.004, 28), lensMat);
+  lens.rotation.set(Math.PI / 2, 0, 0); lens.scale.set(1.18, 1, 0.92);
+  const lg = new THREE.Group(); lg.position.set(0.031 * s, 0.019, 0.092); lg.rotation.y = 0.2 * s; lg.add(lens); head.add(lg);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0015, 6, 28), frameMat); ring.scale.set(1.18, 0.92, 1); lg.add(ring);
+  head.add(limb(V(0.053 * s, 0.022, 0.082), V(0.09 * s, 0.018, 0.005), 0.0013, frameMat, 0.0013));
+});
+head.add(limb(V(-0.01, 0.028, 0.098), V(0.01, 0.028, 0.098), 0.0015, frameMat, 0.0015));
+
+// arms: short sleeves, bare forearms resting on the felt, hands by the deck
 const arms = {};
 [['L', 1], ['R', -1]].forEach(([k, s]) => {
-  const sh = new THREE.Vector3(0.2 * s, 1.27, 0), el = new THREE.Vector3(0.26 * s, 0.95, 0.18), hd = new THREE.Vector3(0.2 * s, 0.79, 0.4);
-  dealer.add(limb(sh, el, 0.055, shirt));
-  const fore = limb(el, hd, 0.042, skin); dealer.add(fore);
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 16, 12), skin); hand.scale.set(1, 0.5, 1.3); hand.position.copy(hd); hand.castShadow = true; dealer.add(hand);
-  arms[k] = { hand, fore, base: hd.clone() };
+  const sh = V(0.19 * s, 1.245, 0), el = V(0.245 * s, 0.965, 0.12), wr = V(0.175 * s, T + 0.03, 0.37);
+  dealer.add(ball(1, shirt, V(0.175 * s, 1.235, 0), [0.062, 0.058, 0.056]));
+  const sleeveEnd = sh.clone().lerp(el, 0.5);
+  dealer.add(limb(sh, sleeveEnd, 0.057, shirt, 0.055));
+  dealer.add(limb(sleeveEnd.clone().lerp(sh, 0.1), el, 0.047, skin, 0.043));
+  dealer.add(ball(0.043, skin, el));
+  dealer.add(limb(el, wr, 0.043, skin, 0.031));
+  const hand = makeHand(skin, -s);
+  hand.position.copy(wr).setY(T + 0.002); hand.rotation.y = -0.45 * s; hand.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+  dealer.add(hand);
+  arms[k] = { hand, base: hand.position.clone() };
 });
 
 /* ---------- player's own forearms ---------- */
 const sleeve = std({ color: 0x2b3442, roughness: 0.85 });
+const cuff = std({ color: 0x232b37, roughness: 0.85 });
 [1, -1].forEach((s) => {
-  const a = new THREE.Vector3(0.4 * s, 0.82, 0.98), b = new THREE.Vector3(0.34 * s, T + 0.05, 0.66), h = new THREE.Vector3(0.32 * s, T + 0.045, 0.57);
+  const a = V(0.4 * s, 0.82, 0.98), b = V(0.34 * s, T + 0.05, 0.68), w = V(0.32 * s, T + 0.03, 0.6);
   scene.add(limb(a, b, 0.05, sleeve));
-  scene.add(limb(b, h, 0.043, sleeve));
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.036, 16, 12), skin); hand.scale.set(1.05, 0.55, 1.35); hand.position.copy(h).add(new THREE.Vector3(-0.004 * s, 0, -0.035)); hand.castShadow = true; scene.add(hand);
+  scene.add(limb(b, w, 0.046, cuff, 0.044));
+  scene.add(limb(w.clone().lerp(b, 0.3), w, 0.03, skin, 0.028));
+  const hand = makeHand(skin, s);
+  hand.position.copy(w).setY(T + 0.002); hand.rotation.y = Math.PI + 0.3 * s;
+  hand.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+  scene.add(hand);
 });
 
 /* =========================================================
@@ -846,9 +938,9 @@ const lampFlash = (a = 2.5) => { lampBoost = Math.max(lampBoost, a); };
 function vignetteHit() { const v = $('#vignette'); v.classList.remove('hit'); void v.offsetWidth; v.classList.add('hit'); }
 
 /* =========================================================
-   Camera: seated first person with mouse / drag look
+   Camera: seated first person, fixed view (no mouse look)
    ========================================================= */
-const cam = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, focus: 0, tFocus: 0, intro: 1, dragging: false, lx: 0, ly: 0 };
+const cam = { focus: 0, tFocus: 0, intro: 1 };
 const SEAT = new THREE.Vector3(0, 1.2, 0.93), STAND = new THREE.Vector3(0.25, 1.55, 1.55);
 let seatAdj = new THREE.Vector3(), basePitch = -0.21;
 function resize() {
@@ -862,42 +954,25 @@ function resize() {
 }
 window.addEventListener('resize', resize); resize();
 
-window.addEventListener('pointermove', (e) => {
-  if (e.pointerType === 'mouse') {
-    const nx = (e.clientX / window.innerWidth) * 2 - 1, ny = (e.clientY / window.innerHeight) * 2 - 1;
-    cam.tYaw = -nx * 0.38; cam.tPitch = -ny * 0.16;
-  } else if (cam.dragging) {
-    cam.tYaw = Math.max(-0.6, Math.min(0.6, cam.tYaw + (e.clientX - cam.lx) * 0.004));
-    cam.tPitch = Math.max(-0.3, Math.min(0.3, cam.tPitch + (e.clientY - cam.ly) * 0.003));
-    cam.lx = e.clientX; cam.ly = e.clientY;
-  }
-});
-canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { cam.dragging = true; cam.lx = e.clientX; cam.ly = e.clientY; } });
-window.addEventListener('pointerup', () => { cam.dragging = false; });
-window.addEventListener('pointercancel', () => { cam.dragging = false; });
-
 let time = 0;
 function updateCamera(dt) {
-  const k = Math.min(1, dt * 4);
-  if (!cam.dragging && matchMedia('(pointer: coarse)').matches) { cam.tYaw *= 1 - dt * 0.6; cam.tPitch *= 1 - dt * 0.6; }
-  cam.yaw += (cam.tYaw - cam.yaw) * k; cam.pitch += (cam.tPitch - cam.pitch) * k;
   cam.focus += (cam.tFocus - cam.focus) * Math.min(1, dt * 2.5);
   const ip = cam.intro;
   const seat = SEAT.clone().add(seatAdj);
   const pos = seat.lerp(STAND, ip * ip);
   shakeAmt = Math.max(0, shakeAmt - dt * 1.6);
   const sx = (Math.random() - 0.5) * shakeAmt * 0.03, sy = (Math.random() - 0.5) * shakeAmt * 0.03;
-  camera.position.set(pos.x + sx, pos.y + Math.sin(time * 1.3) * 0.004 + sy, pos.z);
-  camera.rotation.x = basePitch + cam.focus + cam.pitch - ip * 0.12;
-  camera.rotation.y = cam.yaw + ip * 0.18;
+  camera.position.set(pos.x + sx, pos.y + sy, pos.z);
+  camera.rotation.x = basePitch + cam.focus - ip * 0.12;
+  camera.rotation.y = ip * 0.18;
   camera.rotation.z = (Math.random() - 0.5) * shakeAmt * 0.02;
-  hold.position.set((cam.yaw - cam.tYaw) * 0.05, Math.sin(time * 1.3) * 0.0018 + (cam.pitch - cam.tPitch) * 0.04, 0);
 }
 
 /* ---------- dealer idle + reactions ---------- */
 let dealerReact = null, dealerThinking = false;
 function updateDealer(dt) {
-  torso.scale.set(1, 1 + Math.sin(time * 1.6) * 0.012, 1);
+  torso.scale.set(1 + Math.sin(time * 1.6) * 0.008, 1, 0.66 + Math.sin(time * 1.6) * 0.008);
+  dealer.rotation.y = Math.sin(time * 0.23) * 0.025;
   let ry = Math.sin(time * 0.45) * 0.18 + Math.sin(time * 1.1) * 0.04, rx = 0.08, rz = 0;
   if (dealerThinking) { rz = 0.14; ry = Math.sin(time * 0.8) * 0.08; rx = 0.18; }
   if (dealerReact) {
@@ -1317,7 +1392,6 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'c' && S.phase === 'bet') clearBet();
 });
 
-if (matchMedia('(pointer: coarse)').matches) el.hint.textContent = 'ลากนิ้วบนโต๊ะเพื่อมองรอบ ๆ';
 if (S.balance !== 1000 || S.rec.w + S.rec.l + S.rec.t > 0) $('#start-note').textContent = `เงินจากคราวก่อน ${fmt(S.balance)} · มีเสียงประกอบ แนะนำให้ใส่หูฟัง`;
 
 $('#btn-start').addEventListener('click', () => {
