@@ -872,17 +872,48 @@ function done() {
 }
 
 function trackLookup() {
-  const t = UI.t;
-  return `<div class="split"><div class="ca"><section class="card">
-    <h2>ติดตามคำร้อง</h2>
-    ${UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : ''}
+  const t = UI.t, err = UI.err ? `<div class="alert bad" role="alert"><span class="ico">!</span><span>${UI.err}</span></div>` : '';
+  const masked = ph => `${ph.slice(0, 3)}-xxx-${ph.slice(-4)}`;
+  let left;
+  if (!t.forgot) {
+    left = `<section class="card">
+    <h2>ติดตามคำร้อง</h2>${err}
     <div class="field"><label for="t-id">เลขคำร้อง</label><input class="input mono" id="t-id" data-t="tid" value="${esc(t.tid || '')}" placeholder="LU-2569-0000"></div>
     <div class="field"><label for="t-ph">เบอร์มือถือที่ใช้ยื่น</label><input class="input num" id="t-ph" data-t="tph" value="${esc(t.tph || '')}" inputmode="tel" maxlength="10"></div>
     <div class="row between"><button class="btn ghost" data-a="home">กลับ</button><button class="btn primary" data-a="lookup">ดูสถานะ</button></div>
-  </section></div><div class="cb">
-  <section class="card"><h3>ข้อมูลทดลอง</h3><p class="small muted">คำร้องตัวอย่าง 1 รายการต่อสถานะ กดเพื่อเปิด</p>
+    <button class="linkbtn" style="align-self:flex-start" data-a="forgotOpen">ลืมเลขคำร้อง? ค้นหาด้วยเบอร์มือถือ</button>
+  </section>`;
+  } else if (!t.fverified) {
+    left = `<section class="card">
+    <h2>ค้นหาคำร้องด้วยเบอร์มือถือ</h2>
+    <p class="muted">กรอกเบอร์ที่ใช้ตอนยื่นคำร้อง เราจะส่งรหัส OTP ไปยืนยันว่าเป็นเจ้าของเบอร์</p>${err}
+    <div class="field"><label for="f-ph">เบอร์มือถือที่ใช้ยื่น</label>
+      <div class="row"><input class="input num" id="f-ph" style="flex:1" data-t="fphone" value="${esc(t.fphone || '')}" inputmode="tel" maxlength="10" placeholder="08xxxxxxxx" ${t.fsent ? 'readonly' : ''}>
+      <button class="btn ghost" data-a="forgotSend">${t.fsent ? 'ส่งอีกครั้ง' : 'ขอรหัส OTP'}</button></div>
+      ${t.fsent ? `<span class="hint">ส่งรหัสไปที่ ${esc(masked(t.fphone))} แล้ว · <button class="linkbtn" style="padding:0" data-a="forgotChange">เปลี่ยนเบอร์</button></span>` : ''}</div>
+    ${t.fsent ? `<div class="field"><label for="f-otp">รหัส OTP 6 หลัก</label><input class="input otp" id="f-otp" data-t="fotp" value="${esc(t.fotp || '')}" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><span class="hint">ระบบจำลอง: ใช้รหัส <b class="mono">${OTP}</b></span></div>` : ''}
+    <div class="row between"><button class="btn ghost" data-a="forgotBack">ย้อนกลับ</button>${t.fsent ? `<button class="btn primary" data-a="forgotVerify">ยืนยันและค้นหา</button>` : ''}</div>
+  </section>`;
+  } else {
+    const list = S.cases.filter(c => c.phone === t.fphone);
+    left = `<section class="card">
+    <div class="alert ok"><span class="ico">✓</span><span>ยืนยันเบอร์ ${esc(masked(t.fphone))} แล้ว</span></div>
+    <h2>${list.length ? `พบ ${list.length} คำร้อง` : 'ไม่พบคำร้อง'}</h2>
+    ${list.length ? `<p class="muted">กดเพื่อดูสถานะ แนะนำให้กดคัดลอกเลขคำร้องเก็บไว้</p>
+      <div class="stack" style="gap:8px">${list.map(c => { const cl = claimOf(c); return `<button class="qi" style="grid-template-columns:1fr auto;padding:10px 12px" data-a="openCase" data-id="${c.id}">
+        <span><span class="mono">${c.id}</span><br><span class="small muted">${esc(cl.plate)} · ยื่นเมื่อ ${fmtD(c.history[0].at)}</span></span>${pill(c.status, 'me')}</button>`; }).join('')}</div>`
+      : `<p class="muted">ไม่มีคำร้องที่ใช้เบอร์นี้ ถ้ายื่นด้วยเบอร์อื่น ลองค้นหาใหม่อีกครั้ง หรือติดต่อ 1234 กด 3 (จำลอง)</p>`}
+    <div class="row between"><button class="btn ghost" data-a="forgotChange">ค้นหาด้วยเบอร์อื่น</button><button class="btn ghost" data-a="home">หน้าแรก</button></div>
+  </section>`;
+  }
+  const right = t.forgot
+    ? `<section class="card"><h3>ข้อมูลทดลอง</h3><p class="small muted">เบอร์ที่มีคำร้องอยู่ในระบบจำลอง กดเพื่อกรอก</p>
+      <div class="row">${[...new Set(S.cases.slice(0, 4).map(c => c.phone))].map(ph => `<button class="chipbtn" data-a="forgotFill" data-v="${ph}">${ph}</button>`).join('')}</div>
+      <p class="small muted">ระบบจะไม่บอกว่าเบอร์มีคำร้องหรือไม่ จนกว่าจะยืนยัน OTP สำเร็จ เพื่อป้องกันคนอื่นสุ่มเบอร์ดูข้อมูล</p></section>`
+    : `<section class="card"><h3>ข้อมูลทดลอง</h3><p class="small muted">คำร้องตัวอย่าง 1 รายการต่อสถานะ กดเพื่อเปิด</p>
     <div class="stack" style="gap:6px">${Object.keys(ST).map(st => S.cases.find(c => c.status === st)).filter(Boolean).slice(0, 6).map(c => `<button class="qi" style="grid-template-columns:1fr auto;padding:8px 12px" data-a="openCase" data-id="${c.id}"><span class="mono small">${c.id}</span>${pill(c.status, 'me')}</button>`).join('')}</div>
-  </section></div></div>`;
+  </section>`;
+  return `<div class="split"><div class="ca">${left}</div><div class="cb">${right}</div></div>`;
 }
 
 function caseView(c) {
@@ -1721,6 +1752,23 @@ const A = {
   submit: () => submit(),
   copy: b => { const v = b.dataset.v; try { navigator.clipboard.writeText(v).then(() => { b.textContent = 'คัดลอกแล้ว'; }, () => {}); } catch (e) {} return false; },
   openCase: b => { UI.view = 'claimant'; UI.caseId = b.dataset.id; UI.page = 'case'; UI.err = ''; UI.t = {}; UI.wiz.err = ''; },
+  forgotOpen: () => { UI.t = { forgot:true, fphone:(UI.t.tph || '').trim() }; UI.err = ''; },
+  forgotBack: () => { UI.t = {}; UI.err = ''; },
+  forgotChange: () => { UI.t = { forgot:true }; UI.err = ''; },
+  forgotFill: b => { if (!UI.t.fsent) UI.t.fphone = b.dataset.v; },
+  forgotSend: () => {
+    const ph = (UI.t.fphone || '').trim();
+    if (!/^0\d{9}$/.test(ph)) { UI.err = 'กรอกเบอร์มือถือ 10 หลัก ขึ้นต้นด้วย 0'; return; }
+    UI.t.fphone = ph; UI.t.fsent = true; UI.t.fotp = ''; UI.t.ftries = 0; UI.err = '';
+  },
+  forgotVerify: () => {
+    if ((UI.t.fotp || '') !== OTP) {
+      UI.t.ftries = (UI.t.ftries || 0) + 1;
+      if (UI.t.ftries >= 3) { UI.t.fsent = false; UI.t.fotp = ''; UI.err = 'ใส่รหัสผิดเกิน 3 ครั้ง กดขอรหัส OTP ใหม่'; return; }
+      UI.err = `รหัส OTP ไม่ถูกต้อง (เหลือ ${3 - UI.t.ftries} ครั้ง)`; return;
+    }
+    UI.t.fverified = true; UI.err = '';
+  },
   lookup: () => { const c = getCase((UI.t.tid || '').trim().toUpperCase()); if (!c || c.phone !== (UI.t.tph || '').trim()) { UI.err = 'ไม่พบคำร้อง ตรวจเลขคำร้องและเบอร์มือถืออีกครั้ง'; return; } UI.err = ''; UI.caseId = c.id; UI.page = 'case'; UI.t = {}; },
   sendRepairOut: () => {
     const c = getCase(UI.caseId), out = UI.t.out;
