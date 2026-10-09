@@ -1455,6 +1455,8 @@ function reportCSV(r, sep) {
   });
   return L.join('\r\n');
 }
+// นอก claude.ai (เช่น Netlify) ไม่มี window.claude → ดาวน์โหลดไฟล์ผ่านเบราว์เซอร์ได้ตรง ๆ
+const STANDALONE = !(window.claude && window.claude.use);
 let DL = null;   // downloads capability (null = ใช้ไม่ได้ในมุมมองนี้ → ซ่อนปุ่มดาวน์โหลด)
 (async () => { try { DL = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { DL = null; } if (DL && UI.modal && UI.modal.type === 'rep') renderModal(); })();
 // Excel แยกชีต: ชีตแรกเป็นสรุป ชีตถัดไป 1 ตารางต่อ 1 ชีต (แถวแรกเป็นหัวคอลัมน์ กรอง/เรียงใน Excel ได้)
@@ -1476,6 +1478,7 @@ async function repDownload() {
   const r = UI.modal.rep;
   if (!window.XLSX) { UI.modal.msg = ['bad', 'โหลดตัวสร้างไฟล์ Excel ไม่สำเร็จ ลองเปิดหน้าใหม่ หรือใช้ปุ่มคัดลอกแทน']; renderModal(); return; }
   try {
+    if (!DL) { XLSX.writeFile(reportWorkbook(r), r.fname); UI.modal.msg = ['ok', `ดาวน์โหลด ${r.fname} แล้ว (${r.sections.length} ชีต)`]; renderModal(); return; }
     const buf = XLSX.write(reportWorkbook(r), { bookType:'xlsx', type:'array' });
     await DL.save({ filename: r.fname, data: new Blob([buf]) });
     UI.modal.msg = ['ok', `บันทึกไฟล์ ${r.fname} แล้ว (${r.sections.length} ชีต)`];
@@ -1622,7 +1625,7 @@ function renderModal() {
   if (m.type === 'rep') {
     host.innerHTML = `<div class="ov" data-a="ovClose"><div class="modal wide" role="dialog" aria-modal="true" aria-label="${esc(m.rep.title)}">
       <div class="row between"><h2>${esc(m.rep.title)}</h2><button class="btn ghost sm" data-a="closeModal">ปิด</button></div>
-      <div class="row">${DL ? `<button class="btn primary sm" data-a="repSave">ดาวน์โหลด Excel (แยกชีต)</button>` : ''}<button class="btn ghost sm" data-a="repCopy">คัดลอกตารางไปวางใน Excel</button><span class="small muted">${esc(m.rep.fname)}</span></div>
+      <div class="row">${DL || STANDALONE ? `<button class="btn primary sm" data-a="repSave">ดาวน์โหลด Excel (แยกชีต)</button>` : ''}<button class="btn ghost sm" data-a="repCopy">คัดลอกตารางไปวางใน Excel</button><span class="small muted">${esc(m.rep.fname)}</span></div>
       ${m.msg ? `<div class="alert ${m.msg[0]}"><span class="ico">${m.msg[0] === 'ok' ? '✓' : '!'}</span><span>${esc(m.msg[1])}</span></div>` : ''}
       ${reportHTML(m.rep)}</div></div>`;
     return;
